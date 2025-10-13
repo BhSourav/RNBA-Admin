@@ -69,6 +69,9 @@ struct ContentView: View {
 @available(iOS 14.0, *)
 struct OverviewTabView: View {
     @State private var showNewRegistration = false
+    @StateObject private var dataService = DataService()
+    @State private var dashboardStats: DashboardStats?
+    @State private var registrations: [SupabaseRegistration] = []
     
     var body: some View {
         NavigationView {
@@ -95,28 +98,28 @@ struct OverviewTabView: View {
                     ], spacing: 16) {
                         StatCard(
                             title: "Total Users",
-                            value: "1,234",
+                            value: dashboardStats?.totalUsers.description ?? "Loading...",
                             icon: "person.3.fill",
                             color: .blue
                         )
                         
                         StatCard(
                             title: "Active Sessions",
-                            value: "89",
+                            value: dashboardStats?.activeSessions.description ?? "Loading...",
                             icon: "play.circle.fill",
                             color: .green
                         )
                         
                         StatCard(
                             title: "QR Scans Today",
-                            value: "456",
+                            value: dashboardStats?.qrScansToday.description ?? "Loading...",
                             icon: "qrcode.viewfinder",
                             color: .orange
                         )
                         
                         StatCard(
                             title: "System Status",
-                            value: "Online",
+                            value: dashboardStats?.systemStatus ?? "Loading...",
                             icon: "checkmark.circle.fill",
                             color: .green
                         )
@@ -180,7 +183,26 @@ struct OverviewTabView: View {
             }
         }
         .sheet(isPresented: $showNewRegistration) {
-            NewRegistrationView()
+            NewRegistrationView(dataService: dataService)
+        }
+        .onAppear {
+            loadDashboardData()
+        }
+        .refreshable {
+            await loadDashboardData()
+        }
+    }
+    
+    // MARK: - Private Methods
+    
+    private func loadDashboardData() {
+        Task {
+            do {
+                dashboardStats = try await dataService.fetchDashboardStats()
+                registrations = try await dataService.fetchRegistrations()
+            } catch {
+                print("Error loading dashboard data: \(error)")
+            }
         }
     }
 }
@@ -423,27 +445,20 @@ struct QRScannerTabView: View {
 @available(iOS 14.0, *)
 struct SearchableListTabView: View {
     @State private var searchText = ""
-    @State private var selectedItems: Set<String> = []
+    @State private var selectedItems: Set<UUID> = []
+    @StateObject private var dataService = DataService()
+    @State private var registrations: [SupabaseRegistration] = []
+    @State private var isLoading = false
     
-    // Mock data
-    private let items = [
-        "John Doe",
-        "Jane Smith",
-        "Mike Johnson",
-        "Sarah Wilson",
-        "David Brown",
-        "Lisa Davis",
-        "Tom Anderson",
-        "Emma Taylor",
-        "Chris Miller",
-        "Amy Garcia"
-    ]
-    
-    private var filteredItems: [String] {
+    private var filteredRegistrations: [SupabaseRegistration] {
         if searchText.isEmpty {
-            return items
+            return registrations
         } else {
-            return items.filter { $0.localizedCaseInsensitiveContains(searchText) }
+            return registrations.filter { registration in
+                registration.name.localizedCaseInsensitiveContains(searchText) ||
+                registration.email.localizedCaseInsensitiveContains(searchText) ||
+                registration.phone.localizedCaseInsensitiveContains(searchText)
+            }
         }
     }
     
@@ -455,29 +470,45 @@ struct SearchableListTabView: View {
                     .padding(.horizontal)
                 
                 // List
-                List(filteredItems, id: \.self) { item in
-                    HStack {
-                        // Checkbox
-                        Button(action: {
-                            toggleSelection(for: item)
-                        }) {
-                            Image(systemName: selectedItems.contains(item) ? "checkmark.square.fill" : "square")
-                                .foregroundColor(selectedItems.contains(item) ? .accentColor : .secondary)
-                                .font(.title2)
+                if isLoading {
+                    ProgressView("Loading registrations...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(filteredRegistrations, id: \.id) { registration in
+                        HStack {
+                            // Checkbox
+                            Button(action: {
+                                toggleSelection(for: registration.id!)
+                            }) {
+                                Image(systemName: selectedItems.contains(registration.id!) ? "checkmark.square.fill" : "square")
+                                    .foregroundColor(selectedItems.contains(registration.id!) ? .accentColor : .secondary)
+                                    .font(.title2)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .accessibilityLabel(selectedItems.contains(registration.id!) ? "Deselect \(registration.name)" : "Select \(registration.name)")
+                            
+                            // Registration details
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(registration.name)
+                                    .font(.body)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.primary)
+                                
+                                Text(registration.email)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Text("\(registration.numberOfPersons) person(s) • \(registration.paymentType)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
                         }
-                        .buttonStyle(PlainButtonStyle())
-                        .accessibilityLabel(selectedItems.contains(item) ? "Deselect \(item)" : "Select \(item)")
-                        
-                        // Name
-                        Text(item)
-                            .font(.body)
-                            .foregroundColor(.primary)
-                        
-                        Spacer()
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
+                    .listStyle(PlainListStyle())
                 }
-                .listStyle(PlainListStyle())
                 
                 // Selection summary
                 if !selectedItems.isEmpty {
@@ -505,13 +536,31 @@ struct SearchableListTabView: View {
             .navigationTitle("Searchable List")
             .navigationBarTitleDisplayMode(.large)
         }
+        .onAppear {
+            loadRegistrations()
+        }
+        .refreshable {
+            await loadRegistrations()
+        }
     }
     
-    private func toggleSelection(for item: String) {
-        if selectedItems.contains(item) {
-            selectedItems.remove(item)
+    private func toggleSelection(for id: UUID) {
+        if selectedItems.contains(id) {
+            selectedItems.remove(id)
         } else {
-            selectedItems.insert(item)
+            selectedItems.insert(id)
+        }
+    }
+    
+    private func loadRegistrations() {
+        Task {
+            isLoading = true
+            do {
+                registrations = try await dataService.fetchRegistrations()
+            } catch {
+                print("Error loading registrations: \(error)")
+            }
+            isLoading = false
         }
     }
 }
@@ -673,6 +722,8 @@ struct NewRegistrationView: View {
     @State private var registrationData = RegistrationData()
     @State private var showAlert = false
     @State private var alertMessage = ""
+    @State private var isSaving = false
+    let dataService: DataService
     
     var body: some View {
         NavigationView {
@@ -811,9 +862,11 @@ struct NewRegistrationView: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
-                        saveRegistration()
+                        Task {
+                            await saveRegistration()
+                        }
                     }
-                    .disabled(!isFormValid)
+                    .disabled(!isFormValid || isSaving)
                 }
             }
         }
@@ -859,7 +912,7 @@ struct NewRegistrationView: View {
         }
     }
     
-    private func saveRegistration() {
+    private func saveRegistration() async {
         // Validate form
         guard isFormValid else {
             alertMessage = "Please fill in all required fields"
@@ -867,11 +920,18 @@ struct NewRegistrationView: View {
             return
         }
         
-        // Simulate saving
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            alertMessage = "Registration saved successfully!"
+        isSaving = true
+        
+        do {
+            let registrationId = try await dataService.createRegistration(registrationData)
+            alertMessage = "Registration saved successfully! ID: \(registrationId)"
+            showAlert = true
+        } catch {
+            alertMessage = "Error saving registration: \(error.localizedDescription)"
             showAlert = true
         }
+        
+        isSaving = false
     }
 }
 

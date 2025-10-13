@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		21AE260F2E9CA79F00101ECC /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 21AE260E2E9CA79F00101ECC /* Auth */; };
+		21AE26112E9CA79F00101ECC /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 21AE26102E9CA79F00101ECC /* PostgREST */; };
+		21AE26132E9CA79F00101ECC /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 21AE26122E9CA79F00101ECC /* Realtime */; };
+		21AE26152E9CA79F00101ECC /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 21AE26142E9CA79F00101ECC /* Storage */; };
+		21AE26182E9CAA0B00101ECC /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 21AE26172E9CAA0B00101ECC /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		21AED9882E94997C008FB9A6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +60,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				21AE26182E9CAA0B00101ECC /* Supabase in Frameworks */,
+				21AE26152E9CA79F00101ECC /* Storage in Frameworks */,
+				21AE26132E9CA79F00101ECC /* Realtime in Frameworks */,
+				21AE26112E9CA79F00101ECC /* PostgREST in Frameworks */,
+				21AE260F2E9CA79F00101ECC /* Auth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -72,12 +85,20 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		21AE26162E9CAA0B00101ECC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		21AED9712E949979008FB9A6 = {
 			isa = PBXGroup;
 			children = (
 				21AED97C2E949979008FB9A6 /* RNBA Admin */,
 				21AED98A2E94997C008FB9A6 /* RNBA AdminTests */,
 				21AED9942E94997C008FB9A6 /* RNBA AdminUITests */,
+				21AE26162E9CAA0B00101ECC /* Frameworks */,
 				21AED97B2E949979008FB9A6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -112,6 +133,11 @@
 			);
 			name = "RNBA Admin";
 			packageProductDependencies = (
+				21AE260E2E9CA79F00101ECC /* Auth */,
+				21AE26102E9CA79F00101ECC /* PostgREST */,
+				21AE26122E9CA79F00101ECC /* Realtime */,
+				21AE26142E9CA79F00101ECC /* Storage */,
+				21AE26172E9CAA0B00101ECC /* Supabase */,
 			);
 			productName = "RNBA Admin";
 			productReference = 21AED97A2E949979008FB9A6 /* RNBA Admin.app */;
@@ -195,6 +221,9 @@
 			);
 			mainGroup = 21AED9712E949979008FB9A6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				21AE260D2E9CA79F00101ECC /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 21AED97B2E949979008FB9A6 /* Products */;
 			projectDirPath = "";
@@ -574,6 +603,45 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		21AE260D2E9CA79F00101ECC /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase-community/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		21AE260E2E9CA79F00101ECC /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21AE260D2E9CA79F00101ECC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		21AE26102E9CA79F00101ECC /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21AE260D2E9CA79F00101ECC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		21AE26122E9CA79F00101ECC /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21AE260D2E9CA79F00101ECC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		21AE26142E9CA79F00101ECC /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21AE260D2E9CA79F00101ECC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		21AE26172E9CAA0B00101ECC /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 21AE260D2E9CA79F00101ECC /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 21AED9722E949979008FB9A6 /* Project object */;
 }
