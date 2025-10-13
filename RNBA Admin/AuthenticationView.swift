@@ -102,7 +102,7 @@ struct AuthenticationView: View {
                 .accessibilityAddTraits(.isHeader)
             
             // App description
-            Text("Secure QR Code Scanner")
+            Text("RNBA Admin Dashboard")
                 .font(.title3)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -120,7 +120,7 @@ struct AuthenticationView: View {
                     .foregroundColor(.primary)
                     .accessibilityAddTraits(.isHeader)
                 
-                Text("Sign in to access the QR code scanner")
+                Text("Sign in to access the admin dashboard")
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)

@@ -50,9 +50,7 @@ struct MainAppView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             // Re-authenticate when app comes to foreground
-            Task {
-                await reauthenticateIfNeeded()
-            }
+            reauthenticateIfNeeded()
         }
     }
     
@@ -75,7 +73,7 @@ struct MainAppView: View {
             // Loading content
             VStack(spacing: 24) {
                 // App icon
-                Image(systemName: "qrcode.viewfinder")
+                Image(systemName: "person.crop.circle.badge.checkmark")
                     .font(.system(size: 60))
                     .foregroundColor(.accentColor)
                     .accessibilityHidden(true)

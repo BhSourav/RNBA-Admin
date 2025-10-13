@@ -5,6 +5,10 @@
 //  Created by Sourav Bhattacharjee on 07.10.25.
 //
 
+/*
+// COMMENTED OUT FOR MAC SIMULATION
+// QR Code Scanner functionality disabled to allow app to run on Mac
+
 import SwiftUI
 import AVFoundation
 
@@ -305,5 +309,92 @@ struct QRCodeScannerView_Previews: PreviewProvider {
             isScanning: .constant(true)
         )
         .previewDisplayName("QR Code Scanner")
+    }
+}
+*/
+
+// MARK: - Mock QR Code Scanner for Mac Simulation
+
+import SwiftUI
+
+/// Mock QR Code Scanner for Mac simulation
+@available(iOS 14.0, *)
+struct QRCodeScannerView: UIViewRepresentable {
+    @Binding var scannedCode: String
+    @Binding var isScanning: Bool
+    let onError: ((QRScannerError) -> Void)?
+    let sessionPreset: String // Changed from AVCaptureSession.Preset to String
+    
+    init(
+        scannedCode: Binding<String>,
+        isScanning: Binding<Bool>,
+        onError: ((QRScannerError) -> Void)? = nil,
+        sessionPreset: String = "high" // Changed default value
+    ) {
+        self._scannedCode = scannedCode
+        self._isScanning = isScanning
+        self.onError = onError
+        self.sessionPreset = sessionPreset
+    }
+    
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = UIColor.systemGray5
+        return view
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // Mock implementation - no actual scanning
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    class Coordinator: NSObject {
+        let parent: QRCodeScannerView
+        
+        init(_ parent: QRCodeScannerView) {
+            self.parent = parent
+        }
+    }
+}
+
+/// Mock QR Scanner Error for Mac simulation
+enum QRScannerError: LocalizedError {
+    case cameraNotAvailable
+    case cameraPermissionDenied
+    case sessionConfigurationFailed
+    case metadataOutputNotSupported
+    case unknown(Error)
+    
+    var errorDescription: String? {
+        switch self {
+        case .cameraNotAvailable:
+            return "Camera is not available on this device."
+        case .cameraPermissionDenied:
+            return "Camera permission is required to scan QR codes."
+        case .sessionConfigurationFailed:
+            return "Failed to configure camera session."
+        case .metadataOutputNotSupported:
+            return "QR code scanning is not supported on this device."
+        case .unknown(let error):
+            return "An unknown error occurred: \(error.localizedDescription)"
+        }
+    }
+    
+    var recoverySuggestion: String? {
+        switch self {
+        case .cameraNotAvailable:
+            return "Please use a device with a camera."
+        case .cameraPermissionDenied:
+            return "Please grant camera permission in Settings."
+        case .sessionConfigurationFailed:
+            return "Please restart the app and try again."
+        case .metadataOutputNotSupported:
+            return "Please use a device that supports QR code scanning."
+        case .unknown:
+            return "Please try again or contact support if the problem persists."
+        }
     }
 }

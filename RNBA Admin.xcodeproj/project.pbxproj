@@ -29,22 +29,9 @@
 		21AED9912E94997C008FB9A6 /* RNBA AdminUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "RNBA AdminUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		2178AB7E2E94A74C006C2769 /* Exceptions for "RNBA Admin" folder in "RNBA Admin" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"RNBA-Admin-Info.plist",
-			);
-			target = 21AED9792E949979008FB9A6 /* RNBA Admin */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		21AED97C2E949979008FB9A6 /* RNBA Admin */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				2178AB7E2E94A74C006C2769 /* Exceptions for "RNBA Admin" folder in "RNBA Admin" target */,
-			);
 			path = "RNBA Admin";
 			sourceTree = "<group>";
 		};
