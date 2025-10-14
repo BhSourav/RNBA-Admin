@@ -16,18 +16,25 @@ struct OverviewTabView: View {
     
     private let dashboardService = DashboardService()
     
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .full
+        formatter.timeStyle = .none
+        return formatter.string(from: Date())
+    }
+    
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 8) {
-                        Text("Data Overview")
+                        Text("Today's Overview")
                             .font(.largeTitle)
                             .fontWeight(.bold)
                             .accessibilityAddTraits(.isHeader)
                         
-                        Text("RNBA Admin Dashboard")
+                        Text(formattedDate)
                             .font(.title3)
                             .foregroundColor(.secondary)
                     }
@@ -49,46 +56,60 @@ struct OverviewTabView: View {
                         GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 16) {
-                        StatCard(
-                            title: "Total Registrations",
-                            value: dashboardStats?.totalRegistrations.description ?? "Loading...",
+                        // 1. Total Registrations (tap to see left to visit)
+                        InteractiveStatCard(
+                            primaryTitle: "Registrations Today",
+                            primaryValue: dashboardStats?.totalRegistrationsToday.description ?? "—",
+                            secondaryTitle: "Left to Visit",
+                            secondaryValue: dashboardStats?.registrationsLeftToVisit.description ?? "—",
                             icon: "person.text.rectangle.fill",
                             color: .blue
                         )
                         
-                        StatCard(
-                            title: "Total Visitors",
-                            value: dashboardStats?.totalVisitors.description ?? "Loading...",
+                        // 2. Total Visitors (tap to see left to visit)
+                        InteractiveStatCard(
+                            primaryTitle: "Visitors Today",
+                            primaryValue: dashboardStats?.totalVisitorsToday.description ?? "—",
+                            secondaryTitle: "Left to Visit",
+                            secondaryValue: dashboardStats?.visitorsLeftToVisit.description ?? "—",
                             icon: "person.3.fill",
                             color: .green
                         )
                         
-                        StatCard(
-                            title: "Completed",
-                            value: dashboardStats?.completedVisitors.description ?? "Loading...",
-                            icon: "checkmark.circle.fill",
+                        // 3. Non-Veg Visitors (tap to see left to eat)
+                        InteractiveStatCard(
+                            primaryTitle: "Non-Veg Visitors",
+                            primaryValue: dashboardStats?.nonVegVisitors.description ?? "—",
+                            secondaryTitle: "Left to Eat",
+                            secondaryValue: dashboardStats?.nonVegLeftToEat.description ?? "—",
+                            icon: "fork.knife",
+                            color: .red
+                        )
+                        
+                        // 4. Veg Visitors (tap to see left to eat)
+                        InteractiveStatCard(
+                            primaryTitle: "Veg Visitors",
+                            primaryValue: dashboardStats?.vegVisitors.description ?? "—",
+                            secondaryTitle: "Left to Eat",
+                            secondaryValue: dashboardStats?.vegLeftToEat.description ?? "—",
+                            icon: "leaf.fill",
                             color: .green
                         )
                         
+                        // 5. Spot Registration - Veg
                         StatCard(
-                            title: "Pending",
-                            value: dashboardStats?.pendingVisitors.description ?? "Loading...",
-                            icon: "clock.fill",
+                            title: "Spot Reg - Veg",
+                            value: dashboardStats?.spotRegistrationVeg.description ?? "—",
+                            icon: "person.badge.plus",
+                            color: .mint
+                        )
+                        
+                        // 6. Spot Registration - Non-Veg
+                        StatCard(
+                            title: "Spot Reg - Non-Veg",
+                            value: dashboardStats?.spotRegistrationNonVeg.description ?? "—",
+                            icon: "person.badge.plus",
                             color: .orange
-                        )
-                        
-                        StatCard(
-                            title: "Total Payments",
-                            value: dashboardStats?.totalPayments.description ?? "Loading...",
-                            icon: "creditcard.fill",
-                            color: .purple
-                        )
-                        
-                        StatCard(
-                            title: "System Status",
-                            value: dashboardStats?.systemStatus ?? "Loading...",
-                            icon: "server.rack",
-                            color: .green
                         )
                     }
                     .padding(.horizontal)

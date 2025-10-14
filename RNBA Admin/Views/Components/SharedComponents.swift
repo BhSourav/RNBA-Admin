@@ -47,6 +47,69 @@ struct StatCard: View {
     }
 }
 
+// MARK: - Interactive Stat Card (Toggleable)
+
+@available(iOS 14.0, *)
+struct InteractiveStatCard: View {
+    let primaryTitle: String
+    let primaryValue: String
+    let secondaryTitle: String
+    let secondaryValue: String
+    let icon: String
+    let color: Color
+    
+    @State private var showingSecondary = false
+    
+    var body: some View {
+        Button(action: {
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                showingSecondary.toggle()
+            }
+        }) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.title2)
+                        .foregroundColor(color)
+                        .accessibilityHidden(true)
+                    
+                    Spacer()
+                    
+                    // Indicator that card is tappable
+                    Image(systemName: showingSecondary ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                        .font(.caption)
+                        .foregroundColor(color.opacity(0.6))
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(showingSecondary ? secondaryValue : primaryValue)
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                        .contentTransition(.numericText())
+                    
+                    Text(showingSecondary ? secondaryTitle : primaryTitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(showingSecondary ? color.opacity(0.3) : Color.clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(showingSecondary ? secondaryTitle : primaryTitle): \(showingSecondary ? secondaryValue : primaryValue)")
+        .accessibilityHint("Tap to toggle between \(primaryTitle) and \(secondaryTitle)")
+    }
+}
+
 // MARK: - Activity Card
 
 @available(iOS 14.0, *)

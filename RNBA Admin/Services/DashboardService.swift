@@ -16,7 +16,7 @@ class DashboardService {
     
     // MARK: - Read Operations
     
-    /// Fetches dashboard statistics from test_schema
+    /// Fetches dashboard statistics from test_schema for today
     func fetchDashboardStats() async throws -> DashboardStats {
         // Return mock data for preview mode
         if SupabaseConfig.isPreviewMode {
@@ -25,41 +25,65 @@ class DashboardService {
         }
         
         do {
-            // Get total registrations count
+            // Get today's date range (start of day to now)
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: Date())
+            let todayISO = ISO8601DateFormatter().string(from: today)
+            
+            // 1. Get today's registrations
             let registrationResponse = try await supabase
                 .from("test_schema.Registration")
                 .select("RegistrationID")
+                .gte("created_at", value: todayISO)
                 .execute()
             let registrations: [Registration] = try SupabaseConfig.decode(registrationResponse.data, as: [Registration].self)
             
-            // Get total visitors count
+            // 2. Get today's visitors (all)
             let visitorResponse = try await supabase
                 .from("test_schema.Visitors")
-                .select("VisitorID")
+                .select("*")
+                .gte("created_at", value: todayISO)
                 .execute()
             let visitors: [Visitor] = try SupabaseConfig.decode(visitorResponse.data, as: [Visitor].self)
             
-            // Get completed visitors count
-            let completedResponse = try await supabase
-                .from("test_schema.Visitors")
-                .select("VisitorID")
-                .eq("Completed", value: true)
-                .execute()
-            let completedVisitors: [Visitor] = try SupabaseConfig.decode(completedResponse.data, as: [Visitor].self)
+            // 3. Calculate visitors left to visit (not completed)
+            let visitorsLeftToVisit = visitors.filter { !$0.completed }.count
             
-            // Get total payments count
-            let paymentResponse = try await supabase
-                .from("test_schema.Payment")
-                .select("PaymentID")
-                .execute()
-            let payments: [Payment] = try SupabaseConfig.decode(paymentResponse.data, as: [Payment].self)
+            // 4. Get non-veg visitors (FoodTypeID = 2)
+            let nonVegVisitors = visitors.filter { $0.foodTypeID == 2 }
+            let nonVegLeftToEat = nonVegVisitors.filter { !$0.completed }.count
+            
+            // 5. Get veg visitors (FoodTypeID = 1)
+            let vegVisitors = visitors.filter { $0.foodTypeID == 1 }
+            let vegLeftToEat = vegVisitors.filter { !$0.completed }.count
+            
+            // 6. Get registrations left to visit (registrations where all visitors are not completed)
+            // For simplicity, we count registrations that have at least one incomplete visitor
+            let registrationIDs = Set(visitors.filter { !$0.completed }.map { $0.registrationID })
+            let registrationsLeftToVisit = registrationIDs.count
+            
+            // 7. Spot registrations (assuming registrations created today are "spot")
+            // Spot with veg food
+            let spotVegVisitors = visitors.filter { visitor in
+                visitor.foodTypeID == 1 && registrations.contains(where: { $0.registrationID == visitor.registrationID })
+            }
+            
+            // Spot with non-veg food
+            let spotNonVegVisitors = visitors.filter { visitor in
+                visitor.foodTypeID == 2 && registrations.contains(where: { $0.registrationID == visitor.registrationID })
+            }
             
             return DashboardStats(
-                totalRegistrations: registrations.count,
-                totalVisitors: visitors.count,
-                completedVisitors: completedVisitors.count,
-                pendingVisitors: visitors.count - completedVisitors.count,
-                totalPayments: payments.count,
+                totalRegistrationsToday: registrations.count,
+                registrationsLeftToVisit: registrationsLeftToVisit,
+                totalVisitorsToday: visitors.count,
+                visitorsLeftToVisit: visitorsLeftToVisit,
+                nonVegVisitors: nonVegVisitors.count,
+                nonVegLeftToEat: nonVegLeftToEat,
+                vegVisitors: vegVisitors.count,
+                vegLeftToEat: vegLeftToEat,
+                spotRegistrationVeg: spotVegVisitors.count,
+                spotRegistrationNonVeg: spotNonVegVisitors.count,
                 systemStatus: "Online"
             )
             

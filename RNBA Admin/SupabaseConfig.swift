@@ -83,14 +83,27 @@ struct SupabaseConfig {
 
 // MARK: - Dashboard Statistics Model
 
-/// Dashboard statistics model
+/// Dashboard statistics model for today's data
 @available(iOS 14.0, *)
 struct DashboardStats: Codable {
-    let totalRegistrations: Int
-    let totalVisitors: Int
-    let completedVisitors: Int
-    let pendingVisitors: Int
-    let totalPayments: Int
+    // Registration stats
+    let totalRegistrationsToday: Int
+    let registrationsLeftToVisit: Int
+    
+    // Visitor stats
+    let totalVisitorsToday: Int
+    let visitorsLeftToVisit: Int
+    
+    // Food stats
+    let nonVegVisitors: Int
+    let nonVegLeftToEat: Int
+    let vegVisitors: Int
+    let vegLeftToEat: Int
+    
+    // Spot registration stats
+    let spotRegistrationVeg: Int
+    let spotRegistrationNonVeg: Int
+    
     let systemStatus: String
 }
 
@@ -100,11 +113,16 @@ struct DashboardStats: Codable {
 extension SupabaseConfig {
     /// Mock dashboard statistics for previews
     static let mockDashboardStats = DashboardStats(
-        totalRegistrations: 125,
-        totalVisitors: 342,
-        completedVisitors: 287,
-        pendingVisitors: 55,
-        totalPayments: 98,
+        totalRegistrationsToday: 45,
+        registrationsLeftToVisit: 12,
+        totalVisitorsToday: 128,
+        visitorsLeftToVisit: 23,
+        nonVegVisitors: 76,
+        nonVegLeftToEat: 15,
+        vegVisitors: 52,
+        vegLeftToEat: 8,
+        spotRegistrationVeg: 18,
+        spotRegistrationNonVeg: 27,
         systemStatus: "Online"
     )
 }
