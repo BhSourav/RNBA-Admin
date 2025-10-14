@@ -4,5 +4,9 @@
 <dict>
 	<key>nsFaceIDUsageDescription</key>
 	<string>This app uses Face ID to provide secure authentication for accessing the QR code scanner.</string>
+	<key>SupabaseURL</key>
+	<string>https://ofeayvavciwdzlyfdtqk.supabase.co</string>
+	<key>SupabaseKey</key>
+	<string>sb_publishable_m3zLMhSn_HBSjsiClxklVA_ZJi-v9IH</string>
 </dict>
 </plist>
