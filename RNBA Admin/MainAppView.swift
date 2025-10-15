@@ -32,8 +32,8 @@ struct MainAppView: View {
                             removal: .move(edge: .leading)
                         ))
                 } else {
-                    // Authentication screen
-                    AuthenticationView()
+                    // Login screen
+                    LoginView(authManager: authManager)
                         .transition(.asymmetric(
                             insertion: .move(edge: .leading),
                             removal: .move(edge: .trailing)
