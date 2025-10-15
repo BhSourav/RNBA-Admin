@@ -13,6 +13,10 @@ import Supabase
 class VisitorService {
     
     private let supabase = SupabaseConfig.client
+    private let dataManager = DataManager()
+    
+    // Cache durations
+    private let visitorCacheDuration: TimeInterval = 1800 // 30 minutes
     
     // MARK: - Read Operations
     
@@ -85,9 +89,25 @@ class VisitorService {
                 .eq("VisitorID", value: String(visitorID))
                 .execute()
             
+            // Invalidate related caches since data changed
+            invalidateVisitorCaches()
+            
         } catch {
             throw error
         }
+    }
+    
+    // MARK: - Cache Management
+    
+    /// Invalidate all visitor-related caches
+    func invalidateVisitorCaches() {
+        print("🗑️ VisitorService: Invalidating visitor caches")
+        
+        // Invalidate dashboard stats (they depend on visitor completion)
+        dataManager.invalidate(forKey: DataManager.CacheKey.dashboardStats)
+        
+        // Note: Individual visitor caches are invalidated by registrationID in RegistrationService
+        // when fetchVisitorsWithFood is called next time
     }
     
     // MARK: - Mock Data

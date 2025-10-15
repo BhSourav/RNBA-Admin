@@ -13,16 +13,30 @@ import Supabase
 class DashboardService {
     
     private let supabase = SupabaseConfig.client
+    private let dataManager = DataManager()
+    
+    // Cache durations
+    private let dashboardCacheDuration: TimeInterval = 300 // 5 minutes
     
     // MARK: - Read Operations
     
     /// Fetches dashboard statistics from test_schema for today
     func fetchDashboardStats() async throws -> DashboardStats {
+        let cacheKey = DataManager.CacheKey.dashboardStats
+        
         // Return mock data for preview mode
         if SupabaseConfig.isPreviewMode {
             print("📱 DashboardService: Using mock dashboard stats for preview mode")
             return SupabaseConfig.mockDashboardStats
         }
+        
+        // Try cache first
+        if let cachedStats: DashboardStats = dataManager.get(forKey: cacheKey, maxAge: dashboardCacheDuration) {
+            print("📊 DashboardService: Using cached dashboard stats")
+            return cachedStats
+        }
+        
+        print("📊 DashboardService: Fetching fresh dashboard stats from API")
         
         do {
             // Get today's date range (start of day to now)
@@ -34,7 +48,7 @@ class DashboardService {
             let registrationResponse = try await supabase
                 .from("test_schema.Registration")
                 .select("RegistrationID")
-                .gte("created_at", value: todayISO)
+                .gte("created_at", value: String(todayISO))
                 .execute()
             let registrations: [Registration] = try SupabaseConfig.decode(registrationResponse.data, as: [Registration].self)
             
@@ -42,7 +56,7 @@ class DashboardService {
             let visitorResponse = try await supabase
                 .from("test_schema.Visitors")
                 .select("*")
-                .gte("created_at", value: todayISO)
+                .gte("created_at", value: String(todayISO))
                 .execute()
             let visitors: [Visitor] = try SupabaseConfig.decode(visitorResponse.data, as: [Visitor].self)
             
@@ -73,7 +87,7 @@ class DashboardService {
                 visitor.foodTypeID == 2 && registrations.contains(where: { $0.registrationID == visitor.registrationID })
             }
             
-            return DashboardStats(
+            let stats = DashboardStats(
                 totalRegistrationsToday: registrations.count,
                 registrationsLeftToVisit: registrationsLeftToVisit,
                 totalVisitorsToday: visitors.count,
@@ -87,7 +101,17 @@ class DashboardService {
                 systemStatus: "Online"
             )
             
+            // Cache the result
+            try dataManager.set(stats, forKey: cacheKey, expiresIn: dashboardCacheDuration)
+            
+            return stats
+            
         } catch {
+            // Try to return cached data even if expired as fallback
+            if let cachedStats: DashboardStats = dataManager.get(forKey: cacheKey) {
+                print("📊 DashboardService: Using expired cache as fallback due to API error")
+                return cachedStats
+            }
             throw error
         }
     }

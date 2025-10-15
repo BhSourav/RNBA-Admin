@@ -7,6 +7,34 @@
 
 import Foundation
 
+// MARK: - Registration List Models
+
+/// Summary of a registration for list display
+@available(iOS 14.0, *)
+struct RegistrationSummary: Codable, Identifiable {
+    let registrationID: Int64
+    let name: String
+    let createdAt: String
+    
+    var id: Int64 { registrationID }
+    
+    enum CodingKeys: String, CodingKey {
+        case registrationID = "RegistrationID"
+        case name = "Name"
+        case createdAt = "created_at"
+    }
+}
+
+/// Visitor with food information
+@available(iOS 14.0, *)
+struct VisitorWithFood: Identifiable, Codable {
+    let visitorID: Int64
+    let foodTypeName: String
+    var completed: Bool
+    
+    var id: Int64 { visitorID }
+}
+
 // MARK: - Registration Data Models
 
 @available(iOS 14.0, *)

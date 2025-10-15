@@ -43,8 +43,8 @@ struct ContentView: View {
                 }
                 .tag(1)
             
-            // Searchable List Tab
-            SearchableListTabView()
+            // Registration List Tab
+            RegistrationListTabView()
                 .tabItem {
                     Image(systemName: "list.bullet")
                     Text("List")
