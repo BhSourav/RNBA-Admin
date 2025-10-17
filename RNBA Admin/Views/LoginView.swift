@@ -294,7 +294,7 @@ struct LoginView: View {
 @available(iOS 14.0, *)
 struct BiometricSetupView: View {
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject var authManager: AuthenticationManager
+    let authManager: AuthenticationManager
     
     var body: some View {
         NavigationView {

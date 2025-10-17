@@ -10,7 +10,7 @@ import LocalAuthentication
 
 @available(iOS 14.0, *)
 struct SettingsTabView: View {
-    @ObservedObject var authManager: AuthenticationManager
+    let authManager: AuthenticationManager
     @State private var showSignOutAlert = false
     @State private var biometricEnabled = false
     

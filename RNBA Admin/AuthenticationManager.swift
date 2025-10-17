@@ -50,14 +50,17 @@ class AuthenticationManager: ObservableObject {
             lastError = nil
         }
         
+        print("🔐 Authentication: Starting sign in for email: \(email)")
+        
         do {
             // Authenticate with Supabase
             let response = try await supabase.auth.signIn(email: email, password: password)
             
             // Store credentials if remember me is enabled
             if rememberMe {
-                _ = keychain.saveEmail(email)
-                _ = keychain.savePassword(password)
+                let emailSaved = keychain.saveEmail(email)
+                let passwordSaved = keychain.savePassword(password)
+                print("💾 Authentication: Credentials saved - Email: \(emailSaved), Password: \(passwordSaved)")
             }
             
             await MainActor.run {
@@ -147,6 +150,30 @@ class AuthenticationManager: ObservableObject {
             print("✅ Authentication: User signed out successfully")
         } catch {
             print("❌ Authentication: Sign out failed - \(error.localizedDescription)")
+        }
+    }
+    
+    /// Test Supabase connectivity and configuration
+    func testSupabaseConnection() async -> Bool {
+        // Test basic connectivity
+        let connectivityTest = await SupabaseConfig.testConnectivity()
+        if !connectivityTest {
+            return false
+        }
+        
+        // Test Supabase Auth (simple session check)
+        do {
+            // Try to get the current session (should work even if not authenticated)
+            let _ = try await supabase.auth.session
+            return true
+        } catch let error as NSError {
+            // Check if this is the expected "Auth session missing" error (code 9)
+            // This is normal when not logged in - it means Supabase is working
+            if error.code == 9 && error.domain == "Auth.AuthError" && 
+               error.localizedDescription.contains("Auth session missing") {
+                return true
+            }
+            return false
         }
     }
     

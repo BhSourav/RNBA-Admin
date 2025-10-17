@@ -10,6 +10,7 @@ import SwiftUI
 @available(iOS 14.0, *)
 struct OverviewTabView: View {
     @State private var showNewRegistration = false
+    @State private var showUpdateRegistration = false
     @State private var dashboardStats: DashboardStats?
     @State private var isLoading = false
     @State private var loadError: Error?
@@ -114,59 +115,59 @@ struct OverviewTabView: View {
                     }
                     .padding(.horizontal)
                     
-                    // Recent Activity
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Recent Activity")
-                            .font(.title2)
-                            .fontWeight(.semibold)
-                            .padding(.horizontal)
-                            .accessibilityAddTraits(.isHeader)
-                        
-                        VStack(spacing: 12) {
-                            ActivityCard(
-                                title: "New Registration",
-                                description: "John Doe registered for the event",
-                                time: "2 hours ago",
-                                icon: "person.badge.plus",
-                                color: .blue
-                            )
-                            
-                            ActivityCard(
-                                title: "QR Code Scanned",
-                                description: "Jane Smith checked in",
-                                time: "3 hours ago",
-                                icon: "qrcode.viewfinder",
-                                color: .green
-                            )
-                            
-                            ActivityCard(
-                                title: "Payment Received",
-                                description: "Bob Johnson completed payment",
-                                time: "5 hours ago",
-                                icon: "creditcard.fill",
-                                color: .purple
+                    // Action Buttons
+                    VStack(spacing: 16) {
+                        // New Registration Button
+                        Button(action: {
+                            showNewRegistration = true
+                        }) {
+                            HStack {
+                                Image(systemName: "person.badge.plus")
+                                    .font(.title2)
+                                Text("New Registration")
+                                    .font(.headline)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.blue)
                             )
                         }
-                        .padding(.horizontal)
+                        
+                        // Update Registration Button
+                        Button(action: {
+                            showUpdateRegistration = true
+                        }) {
+                            HStack {
+                                Image(systemName: "qrcode.viewfinder")
+                                    .font(.title2)
+                                Text("Update Registration")
+                                    .font(.headline)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                            .foregroundColor(.white)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.green)
+                            )
+                        }
                     }
+                    .padding(.horizontal)
                     .padding(.vertical)
                 }
             }
             .navigationTitle("Overview")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        showNewRegistration = true
-                    }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .accessibilityLabel("Add new registration")
-                    }
-                }
-            }
             .sheet(isPresented: $showNewRegistration) {
                 NewRegistrationView()
+            }
+            .sheet(isPresented: $showUpdateRegistration) {
+                UpdateRegistrationView()
             }
             .onAppear {
                 loadDashboardData()
