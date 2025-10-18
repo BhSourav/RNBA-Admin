@@ -18,13 +18,14 @@ struct UpdateRegistrationView: View {
     
     @State private var registrationID: Int64?
     @State private var registration: Registration?
-    @State private var visitors: [Visitor] = []
+    @State private var visitors: [VisitorData] = []
+    @State private var visitorDataService = VisitorDataService()
     @State private var isLoading = false
     @State private var errorMessage: String?
     @State private var showError = false
     
     @State private var showAddVisitor = false
-    @State private var visitToDelete: Visitor?
+    @State private var visitToDelete: VisitorData?
     @State private var showDeleteConfirmation = false
     
     private let registrationService = RegistrationService()
@@ -66,15 +67,23 @@ struct UpdateRegistrationView: View {
             } message: {
                 Text(errorMessage ?? "An error occurred")
             }
-            .alert("Delete Visitor", isPresented: $showDeleteConfirmation) {
-                Button("Cancel", role: .cancel) { }
+            .confirmationDialog(
+                "Delete Visitor",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
                 Button("Delete", role: .destructive) {
                     if let visitor = visitToDelete {
                         deleteVisitor(visitor)
                     }
                 }
+                Button("Cancel", role: .cancel) {
+                    visitToDelete = nil
+                }
             } message: {
-                Text("Are you sure you want to delete this visitor?")
+                if let visitor = visitToDelete {
+                    Text("Are you sure you want to delete visitor #\(visitor.visitorid)? This action cannot be undone.")
+                }
             }
             .sheet(isPresented: $showAddVisitor) {
                 AddVisitorView(registrationID: registrationID ?? 0) {
@@ -240,7 +249,7 @@ struct UpdateRegistrationView: View {
                             .foregroundColor(.secondary)
                             .padding()
                     } else {
-                        ForEach(visitors, id: \.visitorID) { visitor in
+                        ForEach(visitors, id: \.visitorid) { visitor in
                             EditableVisitorRow(visitor: visitor) {
                                 visitToDelete = visitor
                                 showDeleteConfirmation = true
@@ -291,7 +300,7 @@ struct UpdateRegistrationView: View {
                 registration = try await fetchRegistration(registrationID: registrationID)
                 
                 // Fetch visitors for this registration
-                visitors = try await fetchVisitors(registrationID: registrationID)
+                visitors = try await visitorDataService.fetchVisitorData(registrationID: registrationID)
                 
                 isLoading = false
             } catch {
@@ -305,7 +314,7 @@ struct UpdateRegistrationView: View {
     private func fetchRegistration(registrationID: Int64) async throws -> Registration {
         // Fetch from Supabase
         let response = try await SupabaseConfig.client
-            .from("test_schema.Registration")
+            .from("Registration")
             .select("*")
             .eq("RegistrationID", value: String(registrationID))
             .single()
@@ -315,28 +324,13 @@ struct UpdateRegistrationView: View {
         return registration
     }
     
-    private func fetchVisitors(registrationID: Int64) async throws -> [Visitor] {
-        let response = try await SupabaseConfig.client
-            .from("test_schema.Visitors")
-            .select("*")
-            .eq("RegistrationID", value: String(registrationID))
-            .execute()
-        
-        let visitors: [Visitor] = try SupabaseConfig.decode(response.data, as: [Visitor].self)
-        return visitors
-    }
-    
-    private func deleteVisitor(_ visitor: Visitor) {
+    private func deleteVisitor(_ visitor: VisitorData) {
         Task {
             do {
-                try await SupabaseConfig.client
-                    .from("test_schema.Visitors")
-                    .delete()
-                    .eq("VisitorID", value: String(visitor.visitorID))
-                    .execute()
+                try await visitorDataService.deleteVisitor(visitorID: visitor.visitorid)
                 
                 // Remove from local list
-                visitors.removeAll { $0.visitorID == visitor.visitorID }
+                visitors.removeAll { $0.visitorid == visitor.visitorid }
                 
             } catch {
                 errorMessage = "Failed to delete visitor: \(error.localizedDescription)"
@@ -361,20 +355,20 @@ struct UpdateRegistrationView: View {
 
 @available(iOS 14.0, *)
 struct EditableVisitorRow: View {
-    let visitor: Visitor
+    let visitor: VisitorData
     let onDelete: () -> Void
     
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Visitor ID: \(visitor.visitorID)")
+                Text("Visitor ID: \(visitor.visitorid)")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
                 HStack(spacing: 12) {
-                    Label("Visit: \(visitor.visitID)", systemImage: "person.fill")
-                    if let foodTypeID = visitor.foodTypeID {
-                        Label("Food: \(foodTypeID)", systemImage: "fork.knife")
+                    Label(visitor.visit_type ?? "Unknown Visit", systemImage: "person.fill")
+                    if let foodPreference = visitor.food_preference {
+                        Label(foodPreference, systemImage: "fork.knife")
                     }
                 }
                 .font(.caption)
@@ -486,7 +480,7 @@ struct AddVisitorView: View {
                 )
                 
                 try await SupabaseConfig.client
-                    .from("test_schema.Visitors")
+                    .from("Visitors")
                     .insert([payload])
                     .execute()
                 

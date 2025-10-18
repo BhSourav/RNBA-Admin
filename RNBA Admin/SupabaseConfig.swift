@@ -46,7 +46,12 @@ struct SupabaseConfig {
     /// Shared Supabase client instance
     static let client = SupabaseClient(
         supabaseURL: URL(string: supabaseURL)!,
-        supabaseKey: supabaseKey
+        supabaseKey: supabaseKey,
+        options: SupabaseClientOptions(
+            db: SupabaseClientOptions.DatabaseOptions(
+                schema: "Test_Schema"
+            )
+        )
     )
     
     // MARK: - Additional Helper Methods

@@ -30,7 +30,7 @@ class VisitorService {
         
         do {
             let response = try await supabase
-                .from("test_schema.visitors")
+                .from("visitors")
                 .select()
                 .order("created_at", ascending: false)
                 .execute()
@@ -53,12 +53,12 @@ class VisitorService {
         
         do {
             let response = try await supabase
-                .from("test_schema.visitors")
+                .from("visitors")
                 .select("""
                     *,
-                    test_schema.visit_type!inner(*),
-                    test_schema.food_type(*),
-                    test_schema.registration!inner(*)
+                    visit_type!inner(*),
+                    food_type(*),
+                    registration!inner(*)
                 """)
                 .order("created_at", ascending: false)
                 .execute()
@@ -84,7 +84,7 @@ class VisitorService {
         do {
             let updateData = ["Completed": completed]
             let _ = try await supabase
-                .from("test_schema.visitors")
+                .from("visitors")
                 .update(updateData)
                 .eq("VisitorID", value: String(visitorID))
                 .execute()
@@ -106,8 +106,8 @@ class VisitorService {
         // Invalidate dashboard stats (they depend on visitor completion)
         dataManager.invalidate(forKey: DataManager.CacheKey.dashboardStats)
         
-        // Note: Individual visitor caches are invalidated by registrationID in RegistrationService
-        // when fetchVisitorsWithFood is called next time
+        // Note: Individual visitor caches are invalidated by registrationID in VisitorDataService
+        // when fetchVisitorData is called next time
     }
     
     // MARK: - Mock Data

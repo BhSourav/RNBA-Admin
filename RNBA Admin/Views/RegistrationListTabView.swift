@@ -165,11 +165,11 @@ struct VisitorPopupView: View {
     let registration: RegistrationSummary
     let registrationService: RegistrationService
     
-    @State private var visitors: [VisitorWithFood] = []
+    @State private var visitors: [VisitorData] = []
     @State private var isLoading = false
     @State private var loadError: Error?
     
-    private let visitorService = VisitorService()
+    private let visitorDataService = VisitorDataService()
     
     var body: some View {
         NavigationView {
@@ -255,6 +255,12 @@ struct VisitorPopupView: View {
                                 .foregroundColor(.secondary)
                                 .frame(width: 100, alignment: .leading)
                             
+                            Text("Visit Type")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            
                             Text("Food Preference")
                                 .font(.caption)
                                 .fontWeight(.semibold)
@@ -313,7 +319,7 @@ struct VisitorPopupView: View {
             loadError = nil
             
             do {
-                visitors = try await registrationService.fetchVisitorsWithFood(registrationID: registration.registrationID)
+                visitors = try await visitorDataService.fetchVisitorData(registrationID: registration.registrationID)
                 loadError = nil
             } catch {
                 print("Error loading visitors: \(error)")
@@ -324,19 +330,20 @@ struct VisitorPopupView: View {
         }
     }
     
-    private func toggleVisitorCompletion(_ visitor: VisitorWithFood, newStatus: Bool) {
+    private func toggleVisitorCompletion(_ visitor: VisitorData, newStatus: Bool) {
         Task {
             do {
-                try await visitorService.updateVisitorCompletedStatus(
-                    visitorID: visitor.visitorID,
+                try await visitorDataService.updateVisitorCompletion(
+                    visitorID: visitor.visitorid,
                     completed: newStatus
                 )
                 
                 // Update local state
-                if let index = visitors.firstIndex(where: { $0.visitorID == visitor.visitorID }) {
-                    visitors[index] = VisitorWithFood(
-                        visitorID: visitor.visitorID,
-                        foodTypeName: visitor.foodTypeName,
+                if let index = visitors.firstIndex(where: { $0.visitorid == visitor.visitorid }) {
+                    visitors[index] = VisitorData(
+                        visitorid: visitor.visitorid,
+                        food_preference: visitor.food_preference,
+                        visit_type: visitor.visit_type,
                         completed: newStatus
                     )
                 }
@@ -352,25 +359,42 @@ struct VisitorPopupView: View {
 
 @available(iOS 14.0, *)
 struct VisitorRow: View {
-    let visitor: VisitorWithFood
+    let visitor: VisitorData
     let onToggle: (Bool) -> Void
     
     var body: some View {
         HStack(spacing: 0) {
             // Visitor ID
-            Text("#\(visitor.visitorID)")
+            Text("#\(visitor.visitorid)")
                 .font(.system(.body, design: .monospaced))
                 .fontWeight(.medium)
                 .frame(width: 100, alignment: .leading)
             
+            // Visit Type
+            HStack(spacing: 6) {
+                Image(systemName: "person.fill")
+                    .font(.caption)
+                    .foregroundColor(.blue)
+                
+                Text(visitor.visit_type ?? "Unknown")
+                    .font(.body)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
             // Food Preference
             HStack(spacing: 6) {
-                Image(systemName: visitor.foodTypeName.contains("Veg") && !visitor.foodTypeName.contains("Non") ? "leaf.fill" : "fork.knife")
-                    .font(.caption)
-                    .foregroundColor(visitor.foodTypeName.contains("Veg") && !visitor.foodTypeName.contains("Non") ? .green : .red)
-                
-                Text(visitor.foodTypeName)
-                    .font(.body)
+                if let foodPref = visitor.food_preference {
+                    Image(systemName: foodPref.contains("Veg") && !foodPref.contains("Non") ? "leaf.fill" : "fork.knife")
+                        .font(.caption)
+                        .foregroundColor(foodPref.contains("Veg") && !foodPref.contains("Non") ? .green : .red)
+                    
+                    Text(foodPref)
+                        .font(.body)
+                } else {
+                    Text("None")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             

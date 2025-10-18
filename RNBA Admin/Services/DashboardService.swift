@@ -46,7 +46,7 @@ class DashboardService {
             
             // 1. Get today's registrations
             let registrationResponse = try await supabase
-                .from("test_schema.Registration")
+                .from("Registration")
                 .select("RegistrationID")
                 .gte("created_at", value: String(todayISO))
                 .execute()
@@ -54,7 +54,7 @@ class DashboardService {
             
             // 2. Get today's visitors (all)
             let visitorResponse = try await supabase
-                .from("test_schema.Visitors")
+                .from("Visitors")
                 .select("*")
                 .gte("created_at", value: String(todayISO))
                 .execute()
