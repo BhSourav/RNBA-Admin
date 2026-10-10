@@ -15,7 +15,7 @@ struct VisitorData: Codable, Identifiable {
     let visitorid: Int64
     let food_preference: String?
     let visit_type: String?
-    let completed: Bool
+    let completed: Bool?
 
     var id: Int64 { visitorid }
 
@@ -51,15 +51,18 @@ struct VisitorDataUI: Identifiable {
     }
 
     var completionStatus: String {
-        visitorData.completed ? "Completed" : "Pending"
+        guard let completed = visitorData.completed else { return "Unknown" }
+        return completed ? "Completed" : "Pending"
     }
 
     var completionIcon: String {
-        visitorData.completed ? "checkmark.circle.fill" : "circle"
+        guard let completed = visitorData.completed else { return "questionmark.circle" }
+        return completed ? "checkmark.circle.fill" : "circle"
     }
 
     var completionColor: String {
-        visitorData.completed ? "green" : "gray"
+        guard let completed = visitorData.completed else { return "orange" }
+        return completed ? "green" : "gray"
     }
 }
 
@@ -67,7 +70,7 @@ struct VisitorDataUI: Identifiable {
 
 /// Request parameters for GetVisitorData RPC call
 @available(iOS 14.0, *)
-struct GetVisitorDataRequest: Codable {
+struct GetVisitorDataRequest: Codable, Sendable {
     let p_registrationid: Int64
 
     enum CodingKeys: String, CodingKey {

@@ -374,10 +374,18 @@ struct EditableVisitorRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
                 
-                if visitor.completed {
+                if let completed = visitor.completed, completed {
                     Label("Completed", systemImage: "checkmark.circle.fill")
                         .font(.caption)
                         .foregroundColor(.green)
+                } else if visitor.completed == false {
+                    Label("Pending", systemImage: "circle")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                } else {
+                    Label("Unknown", systemImage: "questionmark.circle")
+                        .font(.caption)
+                        .foregroundColor(.gray)
                 }
             }
             

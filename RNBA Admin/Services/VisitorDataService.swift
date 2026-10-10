@@ -43,7 +43,7 @@ class VisitorDataService {
         do {
             // Call the GetVisitorData RPC function
             let response = try await supabase
-                .rpc("getvisitordata", params: ["p_registrationid": registrationID])
+                .rpc("GetVisitorData", params: ["p_registrationid": registrationID])
                 .execute()
 
             let visitorData: [VisitorData] = try SupabaseConfig.decode(response.data, as: [VisitorData].self)

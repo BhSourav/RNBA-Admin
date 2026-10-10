@@ -223,6 +223,7 @@ extension DataManager {
     enum CacheKey {
         static let dashboardStats = "dashboard_stats"
         static let registrations = "registrations_event_2024"
+        static let currentEventRegistrations = "current_event_registrations"
         static func visitorData(registrationID: Int64) -> String {
             return "visitor_data_reg_\(registrationID)"
         }

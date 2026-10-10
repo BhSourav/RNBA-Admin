@@ -107,7 +107,7 @@ struct SupabaseConfig {
     }
     
     /// Force preview mode for testing (set to true for previews)
-    static var forcePreviewMode = false
+    static var forcePreviewMode = false  // Now testing with real database
     
     /// Checks if we're running in preview mode
     static var isPreviewMode: Bool {
