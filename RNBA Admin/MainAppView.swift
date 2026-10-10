@@ -17,13 +17,15 @@ struct MainAppView: View {
     // MARK: - Properties
     
     @StateObject private var authManager = AuthenticationManager()
-    @State private var isAppReady = false
-    
+
     // MARK: - Body
-    
+
     var body: some View {
         Group {
-            if isAppReady {
+            if authManager.isInitializing {
+                // Loading screen
+                loadingView
+            } else {
                 if authManager.isAuthenticated {
                     // Main app content
                     ContentView()
@@ -39,15 +41,9 @@ struct MainAppView: View {
                             removal: .move(edge: .trailing)
                         ))
                 }
-            } else {
-                // Loading screen
-                loadingView
             }
         }
         .animation(.easeInOut(duration: 0.3), value: authManager.isAuthenticated)
-        .onAppear {
-            setupApp()
-        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             // Re-authenticate when app comes to foreground
             reauthenticateIfNeeded()
@@ -94,15 +90,7 @@ struct MainAppView: View {
     }
     
     // MARK: - Private Methods
-    
-    /// Sets up the app and determines initial authentication state.
-    private func setupApp() {
-        // Simulate app initialization
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            isAppReady = true
-        }
-    }
-    
+
     /// Re-authenticates the user if needed when the app comes to foreground.
     private func reauthenticateIfNeeded() {
         // For security, we might want to re-authenticate after a certain time

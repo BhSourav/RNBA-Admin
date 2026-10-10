@@ -31,16 +31,36 @@ class AuthenticationManager: ObservableObject {
     
     /// Current authenticated user email
     @Published var currentUserEmail: String?
-    
+
+    /// Whether the initial Supabase session restore is still in progress. The app should show a
+    /// loading state until this becomes `false`, rather than guessing at a fixed delay.
+    @Published var isInitializing = true
+
     // MARK: - Private Properties
-    
+
     private let context = LAContext()
     private let reason = "Authenticate to access the RNBA Admin app"
     private let supabase = SupabaseConfig.client
     private let keychain = KeychainManager.shared
-    
+    private var authStateTask: Task<Void, Never>?
+
+    // MARK: - Initialization
+
+    init() {
+        authStateTask = Task { [weak self] in
+            guard let self else { return }
+            for await (event, session) in self.supabase.auth.authStateChanges {
+                await self.handle(event, session: session)
+            }
+        }
+    }
+
+    deinit {
+        authStateTask?.cancel()
+    }
+
     // MARK: - Public Methods
-    
+
     /// Sign in with email and password
     func signInWithEmail(_ email: String, password: String, rememberMe: Bool = false) async -> Bool {
         guard !isAuthenticating else { return false }
@@ -208,7 +228,32 @@ class AuthenticationManager: ObservableObject {
         }
         return context.biometryType
     }
-    
+
+    // MARK: - Private Methods
+
+    /// Applies a Supabase auth state change to published state. `authStateChanges` always emits
+    /// `.initialSession` first (restoring/refreshing any stored session), then reflects sign-in,
+    /// sign-out, token refresh, etc. as they happen - including sign-outs triggered remotely or by
+    /// an unrecoverable refresh token, which the explicit sign-in/sign-out methods can't see.
+    @MainActor
+    private func handle(_ event: AuthChangeEvent, session: Session?) {
+        switch event {
+        case .initialSession:
+            isAuthenticated = session != nil
+            currentUserEmail = session?.user.email
+            isInitializing = false
+        case .signedIn:
+            isAuthenticated = true
+            currentUserEmail = session?.user.email
+        case .signedOut, .userDeleted:
+            isAuthenticated = false
+            currentUserEmail = nil
+        case .tokenRefreshed, .userUpdated:
+            currentUserEmail = session?.user.email
+        case .passwordRecovery, .mfaChallengeVerified:
+            break
+        }
+    }
 }
 
 // MARK: - Authentication Error
