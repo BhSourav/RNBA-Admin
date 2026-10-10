@@ -83,50 +83,51 @@ class AuthenticationManager: ObservableObject {
         }
     }
     
-    /// Authenticate using biometric authentication (uses stored credentials)
+    /// Authenticate using biometric authentication (uses stored credentials).
+    ///
+    /// The password is stored behind a Keychain item whose access control requires
+    /// `.biometryCurrentSet`, so retrieving it below is what triggers the Face ID / Touch ID
+    /// prompt and is enforced by the Keychain/Secure Enclave itself - not just an app-level
+    /// check that runs before reading an otherwise-unprotected secret.
     func authenticateWithBiometrics() async -> Bool {
         guard !isAuthenticating else { return false }
-        
-        // Check if biometric is enabled and credentials are stored
-        guard keychain.isBiometricEnabled(),
-              let email = keychain.getEmail(),
-              let password = keychain.getPassword() else {
+
+        guard keychain.isBiometricEnabled(), let email = keychain.getEmail() else {
             await MainActor.run {
                 lastError = .biometricNotEnabled
             }
             return false
         }
-        
+
         await MainActor.run {
             isAuthenticating = true
             lastError = nil
         }
-        
-        do {
-            // First, perform biometric authentication
-            let biometricSuccess = try await performBiometricAuthentication()
-            
-            if biometricSuccess {
-                // Then, authenticate with Supabase using stored credentials
-                let response = try await supabase.auth.signIn(email: email, password: password)
-                
-                await MainActor.run {
-                    isAuthenticated = true
-                    currentUserEmail = email
-                    isAuthenticating = false
-                }
-                
-                print("✅ Authentication: Biometric sign in successful")
-                return true
-            } else {
-                await MainActor.run {
-                    lastError = .authenticationFailed
-                    isAuthenticated = false
-                    isAuthenticating = false
-                }
-                return false
+
+        let bioContext = LAContext()
+        bioContext.localizedReason = reason
+
+        guard let password = keychain.getPassword(context: bioContext) else {
+            await MainActor.run {
+                lastError = .authenticationFailed
+                isAuthenticated = false
+                isAuthenticating = false
             }
-            
+            return false
+        }
+
+        do {
+            try await supabase.auth.signIn(email: email, password: password)
+
+            await MainActor.run {
+                isAuthenticated = true
+                currentUserEmail = email
+                isAuthenticating = false
+            }
+
+            print("✅ Authentication: Biometric sign in successful")
+            return true
+
         } catch {
             await MainActor.run {
                 lastError = AuthenticationError.from(error)
@@ -208,24 +209,6 @@ class AuthenticationManager: ObservableObject {
         return context.biometryType
     }
     
-    // MARK: - Private Methods
-    
-    /// Performs the actual biometric authentication
-    private func performBiometricAuthentication() async throws -> Bool {
-        return try await withCheckedThrowingContinuation { continuation in
-            let context = LAContext()
-            context.evaluatePolicy(
-                .deviceOwnerAuthenticationWithBiometrics,
-                localizedReason: reason
-            ) { success, error in
-                if success {
-                    continuation.resume(returning: true)
-                } else {
-                    continuation.resume(throwing: error ?? AuthenticationError.unknown)
-                }
-            }
-        }
-    }
 }
 
 // MARK: - Authentication Error

@@ -8,6 +8,7 @@
 
 import Foundation
 import Security
+import LocalAuthentication
 
 /// Manages secure storage and retrieval of credentials using iOS Keychain
 @available(iOS 14.0, *)
@@ -32,22 +33,26 @@ class KeychainManager {
     
     /// Save email to Keychain
     func saveEmail(_ email: String) -> Bool {
-        return save(email, account: Keys.emailAccount)
+        return save(email, account: Keys.emailAccount, requireBiometry: false)
     }
     
-    /// Save password to Keychain
+    /// Save password to Keychain. The item's access control itself requires a successful
+    /// biometric (Face ID / Touch ID) evaluation to decrypt - this is enforced by the
+    /// Keychain/Secure Enclave, not just an app-level check before reading it.
     func savePassword(_ password: String) -> Bool {
-        return save(password, account: Keys.passwordAccount)
+        return save(password, account: Keys.passwordAccount, requireBiometry: true)
     }
     
     /// Retrieve email from Keychain
     func getEmail() -> String? {
-        return retrieve(account: Keys.emailAccount)
+        return retrieve(account: Keys.emailAccount, context: nil)
     }
     
-    /// Retrieve password from Keychain
-    func getPassword() -> String? {
-        return retrieve(account: Keys.passwordAccount)
+    /// Retrieve password from Keychain. Since the item is protected with a biometry-bound
+    /// access control, this call triggers the system Face ID / Touch ID prompt unless
+    /// `context` is an already-authenticated `LAContext`, in which case that result is reused.
+    func getPassword(context: LAContext? = nil) -> String? {
+        return retrieve(account: Keys.passwordAccount, context: context)
     }
     
     /// Delete email from Keychain
@@ -68,9 +73,10 @@ class KeychainManager {
         return emailDeleted && passwordDeleted
     }
     
-    /// Check if credentials are stored
+    /// Check if credentials are stored. Checks existence only (does not decrypt the
+    /// password value), so this never triggers a biometric prompt.
     func hasStoredCredentials() -> Bool {
-        return getEmail() != nil && getPassword() != nil
+        return getEmail() != nil && accountExists(Keys.passwordAccount)
     }
     
     // MARK: - Biometric Preference (UserDefaults)
@@ -87,55 +93,54 @@ class KeychainManager {
     
     // MARK: - Private Methods
     
-    /// Save data to Keychain
-    private func save(_ value: String, account: String) -> Bool {
+    /// Save data to Keychain. Existing items are removed first rather than updated in place,
+    /// since changing a stored item's access control via `SecItemUpdate` is unreliable.
+    private func save(_ value: String, account: String, requireBiometry: Bool) -> Bool {
         guard let data = value.data(using: .utf8) else {
             return false
         }
         
-        // First, try to update if item exists
-        let updateQuery: [String: Any] = [
+        _ = delete(account: account)
+        
+        var addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Keys.service,
-            kSecAttrAccount as String: account
-        ]
-        
-        let attributes: [String: Any] = [
+            kSecAttrAccount as String: account,
             kSecValueData as String: data
         ]
         
-        let updateStatus = SecItemUpdate(updateQuery as CFDictionary, attributes as CFDictionary)
-        
-        if updateStatus == errSecSuccess {
-            return true
+        if requireBiometry {
+            guard let accessControl = SecAccessControlCreateWithFlags(
+                nil,
+                kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+                .biometryCurrentSet,
+                nil
+            ) else {
+                return false
+            }
+            addQuery[kSecAttrAccessControl as String] = accessControl
+        } else {
+            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         }
         
-        // If update fails, add new item
-        if updateStatus == errSecItemNotFound {
-            let addQuery: [String: Any] = [
-                kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: Keys.service,
-                kSecAttrAccount as String: account,
-                kSecValueData as String: data,
-                kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            ]
-            
-            let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
-            return addStatus == errSecSuccess
-        }
-        
-        return false
+        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+        return addStatus == errSecSuccess
     }
     
-    /// Retrieve data from Keychain
-    private func retrieve(account: String) -> String? {
-        let query: [String: Any] = [
+    /// Retrieve data from Keychain. If the item is biometry-protected, this prompts for
+    /// Face ID / Touch ID (via `context` if supplied, otherwise a context Security creates internally).
+    private func retrieve(account: String, context: LAContext?) -> String? {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Keys.service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
         ]
+        
+        if let context = context {
+            query[kSecUseAuthenticationContext as String] = context
+        }
         
         var dataTypeRef: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &dataTypeRef)
@@ -147,6 +152,20 @@ class KeychainManager {
         }
         
         return value
+    }
+    
+    /// Checks whether an item exists without reading its (possibly biometry-protected) value.
+    private func accountExists(_ account: String) -> Bool {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Keys.service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: false,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        
+        let status = SecItemCopyMatching(query as CFDictionary, nil)
+        return status == errSecSuccess
     }
     
     /// Delete data from Keychain
