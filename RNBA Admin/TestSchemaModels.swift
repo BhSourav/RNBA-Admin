@@ -82,14 +82,16 @@ struct Contact: Codable, Identifiable {
 struct Event: Codable, Identifiable {
     let eventID: Int32
     let name: String
-    let year: String
-    
+    let date: String
+    let isCurrent: Bool
+
     var id: Int32 { eventID }
-    
+
     enum CodingKeys: String, CodingKey {
         case eventID = "EventID"
         case name = "Name"
-        case year = "Year"
+        case date = "Date"
+        case isCurrent = "Current"
     }
 }
 
@@ -121,8 +123,8 @@ struct Visitor: Codable, Identifiable {
     let registrationID: Int64 // Foreign key to Registration
     let visitID: Int64 // Foreign key to VisitType
     let foodTypeID: Int16? // Foreign key to FoodType (nullable)
-    let completed: Bool
-    
+    let completed: Bool? // nullable in the database
+
     var id: Int64 { visitorID }
     
     enum CodingKeys: String, CodingKey {
@@ -143,7 +145,7 @@ struct Payment: Codable, Identifiable {
     let paymentTypeID: Int64 // Foreign key to PaymentType
     let registrationID: Int64 // Foreign key to Registration
     let amount: Decimal // numeric in database
-    let remarks: String? // Rema... in schema (likely Remarks)
+    let remarks: String?
     
     var id: Int64 { paymentID }
     
@@ -153,7 +155,7 @@ struct Payment: Codable, Identifiable {
         case paymentTypeID = "PaymentTypeID"
         case registrationID = "RegistrationID"
         case amount = "Amount"
-        case remarks = "Rema..."
+        case remarks = "Remarks"
     }
 }
 
@@ -261,7 +263,7 @@ struct CreatePaymentRequest: Codable {
         case paymentTypeID = "PaymentTypeID"
         case registrationID = "RegistrationID"
         case amount = "Amount"
-        case remarks = "Rema..."
+        case remarks = "Remarks"
     }
 }
 
@@ -321,7 +323,7 @@ struct UpdatePaymentRequest: Codable {
     enum CodingKeys: String, CodingKey {
         case paymentTypeID = "PaymentTypeID"
         case amount = "Amount"
-        case remarks = "Rema..."
+        case remarks = "Remarks"
     }
 }
 

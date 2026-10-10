@@ -137,6 +137,49 @@ class RegistrationService {
         }
     }
     
+    /// Fetches registrations for the current active event using GetRegistrationDataAll RPC function
+    func fetchCurrentEventRegistrations() async throws -> CurrentEventRegistrationsResponse {
+        let cacheKey = DataManager.CacheKey.currentEventRegistrations
+        
+        // Return mock data for preview mode
+        if SupabaseConfig.isPreviewMode {
+            print("📱 RegistrationService: Using mock current event registrations for preview mode")
+            return createMockCurrentEventRegistrations()
+        }
+        
+        // Try cache first
+        if let cachedResponse: CurrentEventRegistrationsResponse = dataManager.get(forKey: cacheKey, maxAge: registrationCacheDuration) {
+            print("📋 RegistrationService: Using cached current event registrations")
+            return cachedResponse
+        }
+        
+        print("📋 RegistrationService: Fetching fresh current event registrations from API")
+        
+        do {
+            // Call the GetRegistrationDataAll RPC function
+            let response = try await supabase
+                .rpc("GetRegistrationDataAll")
+                .execute()
+            
+            let currentEventResponse: CurrentEventRegistrationsResponse = try SupabaseConfig.decode(response.data, as: CurrentEventRegistrationsResponse.self)
+            
+            // Cache the result
+            try dataManager.set(currentEventResponse, forKey: cacheKey, expiresIn: registrationCacheDuration)
+            
+            print("✅ RegistrationService: Successfully fetched \(currentEventResponse.registrations?.count ?? 0) current event registrations")
+            return currentEventResponse
+            
+        } catch {
+            // Try to return cached data even if expired as fallback
+            if let cachedResponse: CurrentEventRegistrationsResponse = dataManager.get(forKey: cacheKey) {
+                print("📋 RegistrationService: Using expired cache as fallback for current event registrations")
+                return cachedResponse
+            }
+            print("❌ RegistrationService: Failed to fetch current event registrations: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
     // MARK: - Mock Data
     
     private func createMockRegistrations() -> [RegistrationSummary] {
@@ -147,6 +190,21 @@ class RegistrationService {
             RegistrationSummary(registrationID: 4, name: "Alice Williams", createdAt: "2024-10-15T13:45:00Z"),
             RegistrationSummary(registrationID: 5, name: "Charlie Brown", createdAt: "2024-10-15T14:20:00Z")
         ]
+    }
+    
+    private func createMockCurrentEventRegistrations() -> CurrentEventRegistrationsResponse {
+        let mockRegistrations = [
+            CurrentEventRegistration(RegistrationID: 1, Name: "John Doe"),
+            CurrentEventRegistration(RegistrationID: 2, Name: "Jane Smith"),
+            CurrentEventRegistration(RegistrationID: 3, Name: "Bob Johnson"),
+            CurrentEventRegistration(RegistrationID: 4, Name: "Alice Williams"),
+            CurrentEventRegistration(RegistrationID: 5, Name: "Charlie Brown")
+        ]
+        
+        return CurrentEventRegistrationsResponse(
+            event_id: 2024,
+            registrations: mockRegistrations
+        )
     }
     
     // MARK: - Helper Methods
@@ -179,21 +237,14 @@ class RegistrationService {
             let PaymentTypeID: Int64
             let RegistrationID: Int64
             let Amount: Decimal
-            let Rema: String?
-            
-            enum CodingKeys: String, CodingKey {
-                case PaymentTypeID
-                case RegistrationID
-                case Amount
-                case Rema = "Rema..."
-            }
+            let Remarks: String?
         }
-        
+
         let paymentPayload = PaymentPayload(
             PaymentTypeID: paymentType.paymentTypeID,
             RegistrationID: registrationID,
             Amount: amount,
-            Rema: remarks
+            Remarks: remarks
         )
         
         try await supabase

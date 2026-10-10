@@ -61,19 +61,19 @@ class DashboardService {
             let visitors: [Visitor] = try SupabaseConfig.decode(visitorResponse.data, as: [Visitor].self)
             
             // 3. Calculate visitors left to visit (not completed)
-            let visitorsLeftToVisit = visitors.filter { !$0.completed }.count
+            let visitorsLeftToVisit = visitors.filter { !($0.completed ?? false) }.count
             
             // 4. Get non-veg visitors (FoodTypeID = 2)
             let nonVegVisitors = visitors.filter { $0.foodTypeID == 2 }
-            let nonVegLeftToEat = nonVegVisitors.filter { !$0.completed }.count
+            let nonVegLeftToEat = nonVegVisitors.filter { !($0.completed ?? false) }.count
             
             // 5. Get veg visitors (FoodTypeID = 1)
             let vegVisitors = visitors.filter { $0.foodTypeID == 1 }
-            let vegLeftToEat = vegVisitors.filter { !$0.completed }.count
+            let vegLeftToEat = vegVisitors.filter { !($0.completed ?? false) }.count
             
             // 6. Get registrations left to visit (registrations where all visitors are not completed)
             // For simplicity, we count registrations that have at least one incomplete visitor
-            let registrationIDs = Set(visitors.filter { !$0.completed }.map { $0.registrationID })
+            let registrationIDs = Set(visitors.filter { !($0.completed ?? false) }.map { $0.registrationID })
             let registrationsLeftToVisit = registrationIDs.count
             
             // 7. Spot registrations (assuming registrations created today are "spot")
