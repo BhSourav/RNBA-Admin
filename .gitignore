@@ -21,3 +21,6 @@ DerivedData/
 # shared and pins dependency versions for reproducible builds)
 .build/
 .swiftpm/
+
+# Local implementation/design notes - kept on disk for reference, not shared
+docs/
