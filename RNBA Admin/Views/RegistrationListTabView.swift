@@ -10,14 +10,14 @@ import SwiftUI
 @available(iOS 14.0, *)
 struct RegistrationListTabView: View {
     @State private var searchText = ""
-    @State private var registrations: [RegistrationSummary] = []
+    @State private var currentEventResponse: CurrentEventRegistrationsResponse?
+@State private var registrations: [RegistrationSummary] = []
     @State private var isLoading = false
     @State private var loadError: Error?
     @State private var selectedRegistration: RegistrationSummary?
-    @State private var showVisitorPopup = false
-    
+
+
     private let registrationService = RegistrationService()
-    private let eventID: Int32 = 2024 // Default event ID
     
     private var filteredRegistrations: [RegistrationSummary] {
         if searchText.isEmpty {
@@ -33,6 +33,22 @@ struct RegistrationListTabView: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
+                // Current Event Header
+                if let eventResponse = currentEventResponse, !eventResponse.hasError {
+                    VStack(spacing: 4) {
+                        Text("Event \(eventResponse.event_id)")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("\(registrations.count) Registrations")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.systemGroupedBackground))
+                }
+                
                 // Search bar
                 SearchBar(text: $searchText)
                     .padding(.horizontal)
@@ -56,9 +72,9 @@ struct RegistrationListTabView: View {
                 } else if filteredRegistrations.isEmpty {
                     EmptyStateView(
                         icon: "person.text.rectangle",
-                        title: searchText.isEmpty ? "No Registrations Yet" : "No Results Found",
+                        title: searchText.isEmpty ? "No Current Event Registrations" : "No Results Found",
                         message: searchText.isEmpty ?
-                            "Registrations will appear here once created." :
+                            "There are no registrations for the current event yet." :
                             "Try adjusting your search terms.",
                         actionTitle: searchText.isEmpty ? nil : "Clear Search",
                         action: searchText.isEmpty ? nil : { searchText = "" }
@@ -67,7 +83,6 @@ struct RegistrationListTabView: View {
                     List(filteredRegistrations) { registration in
                         Button(action: {
                             selectedRegistration = registration
-                            showVisitorPopup = true
                         }) {
                             HStack(spacing: 16) {
                                 // Registration ID badge
@@ -106,18 +121,16 @@ struct RegistrationListTabView: View {
                     .listStyle(PlainListStyle())
                 }
             }
-            .navigationTitle("Registrations")
+            .navigationTitle("Current Event Registrations")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 loadRegistrations()
             }
-            .sheet(isPresented: $showVisitorPopup) {
-                if let registration = selectedRegistration {
-                    VisitorPopupView(
-                        registration: registration,
-                        registrationService: registrationService
-                    )
-                }
+            .sheet(item: $selectedRegistration) { registration in
+                VisitorPopupView(
+                    registration: registration,
+                    registrationService: registrationService
+                )
             }
         }
         .refreshable {
@@ -133,11 +146,30 @@ struct RegistrationListTabView: View {
             loadError = nil
             
             do {
-                registrations = try await registrationService.fetchRegistrationsForEvent(eventID: eventID)
+                // Fetch current event registrations
+                let response = try await registrationService.fetchCurrentEventRegistrations()
+                currentEventResponse = response
+                
+                // Convert to RegistrationSummary objects
+                if let currentEventRegistrations = response.registrations {
+                    registrations = currentEventRegistrations.map { currentReg in
+                        RegistrationSummary(
+                            registrationID: currentReg.RegistrationID,
+                            name: currentReg.Name,
+                            createdAt: "" // Note: Current function doesn't return created_at
+                        )
+                    }
+                } else {
+                    registrations = []
+                }
+                
                 loadError = nil
+                
             } catch {
-                print("Error loading registrations: \(error)")
+                print("Error loading current event registrations: \(error)")
                 loadError = error
+                currentEventResponse = nil
+                registrations = []
             }
             
             isLoading = false
@@ -309,10 +341,11 @@ struct VisitorPopupView: View {
                 loadVisitors()
             }
         }
+        .navigationViewStyle(StackNavigationViewStyle())
     }
-    
+
     // MARK: - Private Methods
-    
+
     private func loadVisitors() {
         Task {
             isLoading = true
@@ -400,17 +433,21 @@ struct VisitorRow: View {
             
             // Completed Checkbox
             Button(action: {
-                onToggle(!visitor.completed)
+                // Toggle completion: if nil, assume false and set to true
+                // if false, set to true; if true, set to false
+                let currentCompleted = visitor.completed ?? false
+                onToggle(!currentCompleted)
             }) {
-                Image(systemName: visitor.completed ? "checkmark.square.fill" : "square")
+                let isCompleted = visitor.completed ?? false
+                Image(systemName: isCompleted ? "checkmark.square.fill" : "square")
                     .font(.title3)
-                    .foregroundColor(visitor.completed ? .green : .gray)
+                    .foregroundColor(isCompleted ? .green : .gray)
             }
             .frame(width: 100, alignment: .center)
             .buttonStyle(PlainButtonStyle())
         }
         .padding()
-        .background(visitor.completed ? Color.green.opacity(0.05) : Color.clear)
+        .background((visitor.completed ?? false) ? Color.green.opacity(0.05) : Color.clear)
     }
 }
 
