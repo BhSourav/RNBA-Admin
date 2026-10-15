@@ -7,193 +7,111 @@
 
 import SwiftUI
 
-@available(iOS 14.0, *)
+/// Live numbers for the selected event, plus walk-in registration.
 struct OverviewTabView: View {
+    @Environment(DeskStore.self) private var store
     @State private var showNewRegistration = false
-    @State private var showUpdateRegistration = false
-    @State private var dashboardStats: DashboardStats?
-    @State private var isLoading = false
-    @State private var loadError: Error?
-    
-    private let dashboardService = DashboardService()
-    
-    private var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        return formatter.string(from: Date())
-    }
-    
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header
-                    VStack(spacing: 8) {
-                        Text("Today's Overview")
-                            .font(.largeTitle)
-                            .fontWeight(.bold)
-                            .accessibilityAddTraits(.isHeader)
-                        
-                        Text(formattedDate)
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top)
-                    
-                    // Error State
-                    if let error = loadError {
-                        ErrorStateView(
-                            error: error,
-                            onRetry: {
-                                loadDashboardData()
-                            }
-                        )
+                    EventHeader()
                         .padding(.horizontal)
-                    }
-                    
-                    // Stats Cards
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 16) {
-                        // 1. Total Registrations (tap to see left to visit)
+                        .padding(.top)
+
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                        let groups = store.registrations
+                        let visitors = store.visitors
+                        let food = store.foodVisitors
+                        let veg = food.filter { $0.foodKind == .veg }
+                        let nonVeg = food.filter { $0.foodKind == .nonVeg }
+                        let spot = groups.filter(\.isSpotRegistration)
+
                         InteractiveStatCard(
-                            primaryTitle: "Registrations Today",
-                            primaryValue: dashboardStats?.totalRegistrationsToday.description ?? "—",
-                            secondaryTitle: "Left to Visit",
-                            secondaryValue: dashboardStats?.registrationsLeftToVisit.description ?? "—",
+                            primaryTitle: "Registrations",
+                            primaryValue: "\(groups.count)",
+                            secondaryTitle: "Left to check in",
+                            secondaryValue: "\(groups.filter { !$0.isFullyCheckedIn }.count)",
                             icon: "person.text.rectangle.fill",
                             color: .blue
                         )
-                        
-                        // 2. Total Visitors (tap to see left to visit)
+
                         InteractiveStatCard(
-                            primaryTitle: "Visitors Today",
-                            primaryValue: dashboardStats?.totalVisitorsToday.description ?? "—",
-                            secondaryTitle: "Left to Visit",
-                            secondaryValue: dashboardStats?.visitorsLeftToVisit.description ?? "—",
+                            primaryTitle: "People",
+                            primaryValue: "\(visitors.count)",
+                            secondaryTitle: "Left to check in",
+                            secondaryValue: "\(visitors.filter { !$0.completed }.count)",
                             icon: "person.3.fill",
-                            color: .green
+                            color: .indigo
                         )
-                        
-                        // 3. Non-Veg Visitors (tap to see left to eat)
+
                         InteractiveStatCard(
-                            primaryTitle: "Non-Veg Visitors",
-                            primaryValue: dashboardStats?.nonVegVisitors.description ?? "—",
-                            secondaryTitle: "Left to Eat",
-                            secondaryValue: dashboardStats?.nonVegLeftToEat.description ?? "—",
-                            icon: "fork.knife",
-                            color: .red
-                        )
-                        
-                        // 4. Veg Visitors (tap to see left to eat)
-                        InteractiveStatCard(
-                            primaryTitle: "Veg Visitors",
-                            primaryValue: dashboardStats?.vegVisitors.description ?? "—",
-                            secondaryTitle: "Left to Eat",
-                            secondaryValue: dashboardStats?.vegLeftToEat.description ?? "—",
+                            primaryTitle: "Veg meals",
+                            primaryValue: "\(veg.count)",
+                            secondaryTitle: "Left to serve",
+                            secondaryValue: "\(veg.filter { !$0.food_served }.count)",
                             icon: "leaf.fill",
                             color: .green
                         )
-                        
-                        // 5. Spot Registration - Veg
+
+                        InteractiveStatCard(
+                            primaryTitle: "Non-Veg meals",
+                            primaryValue: "\(nonVeg.count)",
+                            secondaryTitle: "Left to serve",
+                            secondaryValue: "\(nonVeg.filter { !$0.food_served }.count)",
+                            icon: "fork.knife",
+                            color: .red
+                        )
+
                         StatCard(
-                            title: "Spot Reg - Veg",
-                            value: dashboardStats?.spotRegistrationVeg.description ?? "—",
+                            title: "Children",
+                            value: "\(visitors.filter(\.child).count)",
+                            icon: "figure.and.child.holdinghands",
+                            color: .orange
+                        )
+
+                        StatCard(
+                            title: "Spot registrations",
+                            value: "\(spot.count)",
                             icon: "person.badge.plus",
                             color: .mint
                         )
-                        
-                        // 6. Spot Registration - Non-Veg
-                        StatCard(
-                            title: "Spot Reg - Non-Veg",
-                            value: dashboardStats?.spotRegistrationNonVeg.description ?? "—",
-                            icon: "person.badge.plus",
-                            color: .orange
-                        )
                     }
                     .padding(.horizontal)
-                    
-                    // Action Buttons
-                    VStack(spacing: 16) {
-                        // New Registration Button
-                        Button(action: {
-                            showNewRegistration = true
-                        }) {
-                            HStack {
-                                Image(systemName: "person.badge.plus")
-                                    .font(.title2)
-                                Text("New Registration")
-                                    .font(.headline)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                            }
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.blue)
-                            )
-                        }
-                        
-                        // Update Registration Button
-                        Button(action: {
-                            showUpdateRegistration = true
-                        }) {
-                            HStack {
-                                Image(systemName: "qrcode.viewfinder")
-                                    .font(.title2)
-                                Text("Update Registration")
-                                    .font(.headline)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                            }
-                            .foregroundColor(.white)
-                            .padding()
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color.green)
-                            )
-                        }
+
+                    if let lastUpdated = store.lastUpdated {
+                        Text("Updated \(lastUpdated.formatted(date: .omitted, time: .shortened)) · pull to refresh")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
+
+                    Button {
+                        showNewRegistration = true
+                    } label: {
+                        Label("New Registration", systemImage: "person.badge.plus")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(store.selectedEvent == nil)
                     .padding(.horizontal)
-                    .padding(.vertical)
                 }
+                .padding(.bottom)
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Overview")
             .navigationBarTitleDisplayMode(.inline)
+            .refreshable { await store.refreshVisitors() }
             .sheet(isPresented: $showNewRegistration) {
                 NewRegistrationView()
             }
-            .sheet(isPresented: $showUpdateRegistration) {
-                UpdateRegistrationView()
-            }
-            .onAppear {
-                loadDashboardData()
-            }
-        }
-        .refreshable {
-            await loadDashboardData()
         }
     }
-    
-    // MARK: - Private Methods
-    
-    private func loadDashboardData() {
-        Task {
-            isLoading = true
-            loadError = nil
-            
-            do {
-                dashboardStats = try await dashboardService.fetchDashboardStats()
-                loadError = nil
-            } catch {
-                print("Error loading dashboard data: \(error)")
-                loadError = error
-            }
-            
-            isLoading = false
-        }
-    }
+}
+
+#Preview {
+    OverviewTabView()
+        .environment(DeskStore())
 }

@@ -49,7 +49,7 @@ struct SupabaseConfig {
         supabaseKey: supabaseKey,
         options: SupabaseClientOptions(
             db: SupabaseClientOptions.DatabaseOptions(
-                schema: "Test_Schema"
+                schema: "RNBA_Prod"
             )
         )
     )

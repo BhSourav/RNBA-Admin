@@ -7,229 +7,185 @@
 
 import SwiftUI
 
-@available(iOS 14.0, *)
+/// Walk-in registration for the selected event. The database generates the
+/// registration ID ("APP-…", see wp-sync/sql/006).
 struct NewRegistrationView: View {
+    @Environment(DeskStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State private var registrationData = RegistrationData()
-    @State private var showAlert = false
-    @State private var alertMessage = ""
+
+    @State private var walkIn = WalkInRegistration()
+    @State private var visitTypes: [VisitTypeRow] = []
+    @State private var paymentTypes: [PaymentTypeRow] = []
     @State private var isSaving = false
-    
-    private let registrationService = RegistrationService()
-    
+    @State private var errorMessage: String?
+    @State private var savedRegistrationID: String?
+
+    private let service = DeskService()
+
+    /// Distinct Visit_Type names, e.g. Member, Visitor, Performer.
+    private var categories: [String] {
+        var seen = Set<String>()
+        return visitTypes.map(\.name).filter { seen.insert($0).inserted }
+    }
+
+    private var isFormValid: Bool {
+        !walkIn.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !(walkIn.phone.isEmpty && walkIn.email.isEmpty && walkIn.mobile.isEmpty)
+            && !walkIn.persons.isEmpty
+    }
+
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
-                // Basic Information
-                Section("Basic Information") {
-                    TextField("Name", text: $registrationData.name)
+                Section {
+                    LabeledContent("Event", value: store.selectedEvent?.name ?? "None")
+                } footer: {
+                    Text("Registers for the event selected in the app. To change it, cancel and tap the event name at the top of the tab.")
+                }
+
+                Section("Name") {
+                    TextField("Name", text: $walkIn.name)
                         .textContentType(.name)
-                        .accessibilityLabel("Registration name")
-                    
-                    Stepper("Number of Persons: \(registrationData.numberOfPersons)", value: $registrationData.numberOfPersons, in: 1...10)
-                        .accessibilityLabel("Number of persons")
-                        .accessibilityValue("\(registrationData.numberOfPersons)")
                 }
-                
-                // Person Details
-                Section("Person Details") {
-                    ForEach(0..<registrationData.numberOfPersons, id: \.self) { index in
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Person \(index + 1)")
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            
-                            // Visit Type
-                            HStack {
-                                Text("Visit Type")
-                                Spacer()
-                                Picker("Visit Type", selection: Binding(
-                                    get: { 
-                                        index < registrationData.persons.count ? 
-                                        registrationData.persons[index].visitType : .generalVisit 
-                                    },
-                                    set: { newValue in
-                                        if index < registrationData.persons.count {
-                                            registrationData.persons[index].visitType = newValue
-                                        }
-                                    }
-                                )) {
-                                    ForEach(VisitType.allCases, id: \.self) { type in
-                                        Text(type.displayName).tag(type)
-                                    }
-                                }
-                                .pickerStyle(MenuPickerStyle())
-                            }
-                            
-                            // Food Preference (only if visit type is food)
-                            if index < registrationData.persons.count && 
-                               registrationData.persons[index].visitType == .foodVisit {
-                                HStack {
-                                    Text("Food Preference")
-                                    Spacer()
-                                    Picker("Food Preference", selection: Binding(
-                                        get: { 
-                                            index < registrationData.persons.count ? 
-                                            registrationData.persons[index].foodPreference : .none 
-                                        },
-                                        set: { newValue in
-                                            if index < registrationData.persons.count {
-                                                registrationData.persons[index].foodPreference = newValue
-                                            }
-                                        }
-                                    )) {
-                                        ForEach(FoodPreference.allCases, id: \.self) { preference in
-                                            Text(preference.displayName).tag(preference)
-                                        }
-                                    }
-                                    .pickerStyle(MenuPickerStyle())
-                                }
-                            }
-                        }
-                        .padding(.vertical, 8)
+
+                Section {
+                    ForEach($walkIn.persons) { $person in
+                        PersonEditor(person: $person, categories: categories)
                     }
+                    .onDelete { walkIn.persons.remove(atOffsets: $0) }
+
+                    Button {
+                        walkIn.persons.append(WalkInPerson())
+                    } label: {
+                        Label("Add person", systemImage: "plus.circle")
+                    }
+                } header: {
+                    Text("People (\(walkIn.persons.count))")
+                } footer: {
+                    Text("Swipe left on a person to remove them.")
                 }
-                
-                // Contact Details
-                Section("Contact Details") {
-                    TextField("Phone", text: $registrationData.contactDetails.phone)
+
+                Section {
+                    TextField("Phone", text: $walkIn.phone)
                         .textContentType(.telephoneNumber)
                         .keyboardType(.phonePad)
-                        .accessibilityLabel("Phone number")
-                    
-                    TextField("Email", text: $registrationData.contactDetails.email)
+                    TextField("Mobile", text: $walkIn.mobile)
+                        .textContentType(.telephoneNumber)
+                        .keyboardType(.phonePad)
+                    TextField("Email", text: $walkIn.email)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
-                        .autocapitalization(.none)
-                        .accessibilityLabel("Email address")
-                    
-                    TextField("Mobile (Optional)", text: $registrationData.contactDetails.mobile)
-                        .textContentType(.telephoneNumber)
-                        .keyboardType(.phonePad)
-                        .accessibilityLabel("Mobile number")
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Address")
-                        TextField("Full address", text: $registrationData.contactDetails.address, axis: .vertical)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .lineLimit(3...6)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                    TextField("Address", text: $walkIn.address, axis: .vertical)
+                        .lineLimit(2...4)
+                } header: {
+                    Text("Contact")
+                } footer: {
+                    Text("A phone, mobile or email is required.")
+                }
+
+                // Payment_Type is empty in RNBA_Prod for now; the section
+                // appears once payment types are added there.
+                if !paymentTypes.isEmpty {
+                    Section("Payment") {
+                        Picker("Payment type", selection: $walkIn.paymentTypeID) {
+                            Text("None").tag(Int?.none)
+                            ForEach(paymentTypes) { Text($0.name).tag(Optional($0.paymenttypeid)) }
+                        }
+                        if walkIn.paymentTypeID != nil {
+                            TextField("Amount", value: $walkIn.paymentAmount, format: .number)
+                                .keyboardType(.decimalPad)
+                            TextField("Remarks", text: $walkIn.paymentRemarks)
+                        }
                     }
                 }
-                
-                // Payment Section
-                Section("Payment") {
-                    HStack {
-                        Text("Payment Type")
-                        Spacer()
-                        Picker("Payment Type", selection: $registrationData.paymentType) {
-                            ForEach(PaymentType.allCases, id: \.self) { type in
-                                Text(type.displayName).tag(type)
-                            }
-                        }
-                        .pickerStyle(MenuPickerStyle())
-                    }
-                    
-                    HStack {
-                        Text("Amount")
-                        Spacer()
-                        TextField("0.00", value: $registrationData.paymentAmount, format: .number)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .keyboardType(.decimalPad)
-                            .frame(maxWidth: 150)
-                            .multilineTextAlignment(.trailing)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Remarks (Optional)")
-                        TextField("Payment notes", text: Binding(
-                            get: { registrationData.paymentRemarks ?? "" },
-                            set: { registrationData.paymentRemarks = $0.isEmpty ? nil : $0 }
-                        ), axis: .vertical)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .lineLimit(2...4)
-                    }
+
+                Section {
+                    Toggle("Check in now", isOn: $walkIn.checkInNow)
                 }
             }
             .navigationTitle("New Registration")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        dismiss()
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView()
+                    } else {
+                        Button("Save") { Task { await save() } }
+                            .disabled(!isFormValid || store.selectedEvent == nil)
                     }
                 }
-                
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        Task {
-                            await saveRegistration()
-                        }
-                    }
-                    .disabled(!isFormValid || isSaving)
-                }
+            }
+            .interactiveDismissDisabled(isSaving)
+            .task { await loadLookups() }
+            .alert("Couldn't Save", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
+            .alert("Registered", isPresented: Binding(
+                get: { savedRegistrationID != nil },
+                set: { if !$0 { savedRegistrationID = nil; dismiss() } }
+            )) {
+                Button("OK") {}
+            } message: {
+                Text("Registration \(savedRegistrationID ?? "") was created.")
             }
         }
-        .alert("Registration", isPresented: $showAlert) {
-            Button("OK") {
-                if alertMessage.contains("successfully") {
-                    dismiss()
-                }
-            }
-        } message: {
-            Text(alertMessage)
-        }
-        .onAppear {
-            setupPersonsArray()
-        }
-        .onChange(of: registrationData.numberOfPersons) { _, newValue in
-            updatePersonsArray(newCount: newValue)
-        }
     }
-    
-    private var isFormValid: Bool {
-        !registrationData.name.isEmpty &&
-        !registrationData.contactDetails.phone.isEmpty &&
-        !registrationData.contactDetails.email.isEmpty &&
-        !registrationData.contactDetails.address.isEmpty
-    }
-    
-    private func setupPersonsArray() {
-        while registrationData.persons.count < registrationData.numberOfPersons {
-            registrationData.persons.append(PersonData())
-        }
-    }
-    
-    private func updatePersonsArray(newCount: Int) {
-        if newCount > registrationData.persons.count {
-            // Add new persons
-            for _ in registrationData.persons.count..<newCount {
-                registrationData.persons.append(PersonData())
-            }
-        } else if newCount < registrationData.persons.count {
-            // Remove excess persons
-            registrationData.persons = Array(registrationData.persons.prefix(newCount))
-        }
-    }
-    
-    private func saveRegistration() async {
-        // Validate form
-        guard isFormValid else {
-            alertMessage = "Please fill in all required fields"
-            showAlert = true
-            return
-        }
-        
-        isSaving = true
-        
+
+    private func loadLookups() async {
         do {
-            let registrationId = try await registrationService.createRegistration(registrationData)
-            alertMessage = "Registration saved successfully! Registration ID: \(registrationId)"
-            showAlert = true
+            visitTypes = try await service.fetchVisitTypes()
+            paymentTypes = try await service.fetchPaymentTypes()
         } catch {
-            alertMessage = "Error saving registration: \(error.localizedDescription)"
-            showAlert = true
+            errorMessage = "Couldn't load visit types: \(error.localizedDescription)"
         }
-        
-        isSaving = false
     }
+
+    private func save() async {
+        guard let eventID = store.selectedEventID else { return }
+        isSaving = true
+        defer { isSaving = false }
+        do {
+            let id = try await service.createWalkIn(walkIn, eventID: eventID, visitTypes: visitTypes)
+            await store.refreshVisitors()
+            savedRegistrationID = id
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Person Editor
+
+private struct PersonEditor: View {
+    @Binding var person: WalkInPerson
+    let categories: [String]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Picker("Type", selection: $person.category) {
+                ForEach(categories, id: \.self) { Text($0).tag($0) }
+            }
+            Picker("Food", selection: $person.food) {
+                ForEach(WalkInFood.allCases) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            Toggle("Child", isOn: $person.isChild)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+#Preview {
+    NewRegistrationView()
+        .environment(DeskStore())
 }

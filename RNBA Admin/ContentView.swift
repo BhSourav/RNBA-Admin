@@ -9,111 +9,63 @@
 import SwiftUI
 
 /// The main view of the RNBA Admin app.
-/// 
-/// This view provides a tab-based interface with four main sections:
-/// - Overview: Dashboard with statistics
-/// - Scanner: QR code scanning functionality
-/// - List: Searchable visitor list
-/// - Settings: App settings and sign out
-@available(iOS 14.0, *)
+///
+/// Tabs, all showing the event selected from the calendar menu:
+/// - Overview: live numbers and walk-in registration
+/// - Welcome Desk: check in a whole registration on arrival
+/// - Food Desk: mark each food ticket as served
+/// - Settings: app settings and sign out
+///
+/// QR scanning is hidden for now (QRCodeScannerView is kept for later).
 struct ContentView: View {
-    
+
     // MARK: - State Properties
-    
+
     @StateObject private var authManager = AuthenticationManager()
+    @State private var store = DeskStore()
     @State private var selectedTab = 0
-    
+
     // MARK: - Body
-    
+
     var body: some View {
         TabView(selection: $selectedTab) {
-            // Overview Tab
             OverviewTabView()
                 .tabItem {
-                    Image(systemName: "chart.bar.fill")
-                    Text("Overview")
+                    Label("Overview", systemImage: "chart.bar.fill")
                 }
                 .tag(0)
-            
-            // QR Scanner Tab
-            QRScannerTabView()
+
+            WelcomeDeskView()
                 .tabItem {
-                    Image(systemName: "qrcode.viewfinder")
-                    Text("Scanner")
+                    Label("Welcome", systemImage: "person.crop.circle.badge.checkmark")
                 }
                 .tag(1)
-            
-            // Registration List Tab
-            RegistrationListTabView()
+
+            FoodDeskView()
                 .tabItem {
-                    Image(systemName: "list.bullet")
-                    Text("List")
+                    Label("Food", systemImage: "fork.knife")
                 }
                 .tag(2)
-            
-            // Settings Tab
+
             SettingsTabView(authManager: authManager)
                 .tabItem {
-                    Image(systemName: "gear")
-                    Text("Settings")
+                    Label("Settings", systemImage: "gear")
                 }
                 .tag(3)
         }
-    }
-}
-
-// MARK: - QR Scanner Tab View (Placeholder)
-
-@available(iOS 14.0, *)
-struct QRScannerTabView: View {
-    @State private var scannedCode = ""
-    @State private var isScanning = true
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Spacer()
-                
-                Image(systemName: "qrcode.viewfinder")
-                    .font(.system(size: 80))
-                    .foregroundColor(.blue)
-                
-                Text("QR Scanner")
-                    .font(.title)
-                    .fontWeight(.bold)
-                
-                Text("QR scanning functionality")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-                
-                if !scannedCode.isEmpty {
-                    Text("Last scanned: \(scannedCode)")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                        .padding()
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(8)
-                }
-                
-                Spacer()
-            }
-            .navigationTitle("Scanner")
-            .navigationBarTitleDisplayMode(.large)
-        }
+        .environment(store)
+        .deskErrorAlert(store)
+        .task { await store.loadEvents() }
+        // Reload whenever the selected event changes (and once it's first known).
+        .task(id: store.selectedEventID) { await store.refreshVisitors() }
     }
 }
 
 // MARK: - Preview
 
-@available(iOS 14.0, *)
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        // Enable preview mode for mock data
-        SupabaseConfig.forcePreviewMode = true
-        
-        return ContentView()
+        ContentView()
             .previewDisplayName("RNBA Admin")
     }
 }
