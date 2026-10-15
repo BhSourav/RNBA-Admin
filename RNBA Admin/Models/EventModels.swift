@@ -56,6 +56,7 @@ struct EventInfo: Codable, Identifiable {
     let name: String
     let date: String
     let isCurrent: Bool
+    let isEvening: Bool?
 
     var id: Int32 { eventID }
 
@@ -64,6 +65,7 @@ struct EventInfo: Codable, Identifiable {
         case name = "Name"
         case date = "Date"
         case isCurrent = "Current"
+        case isEvening = "IsEvening"
     }
 }
 

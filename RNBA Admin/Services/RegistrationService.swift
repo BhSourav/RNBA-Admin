@@ -138,17 +138,21 @@ class RegistrationService {
     }
     
     /// Fetches registrations for the current active event using GetRegistrationDataAll RPC function
-    func fetchCurrentEventRegistrations() async throws -> CurrentEventRegistrationsResponse {
+    /// - Parameter forceRefresh: when true, skips the cache and always fetches fresh from the API
+    ///   (still updates the cache afterward). Use this for explicit user-initiated refreshes -
+    ///   otherwise which event is "current" can appear stuck for up to `registrationCacheDuration`
+    ///   after it actually changes server-side.
+    func fetchCurrentEventRegistrations(forceRefresh: Bool = false) async throws -> CurrentEventRegistrationsResponse {
         let cacheKey = DataManager.CacheKey.currentEventRegistrations
-        
+
         // Return mock data for preview mode
         if SupabaseConfig.isPreviewMode {
             print("📱 RegistrationService: Using mock current event registrations for preview mode")
             return createMockCurrentEventRegistrations()
         }
-        
-        // Try cache first
-        if let cachedResponse: CurrentEventRegistrationsResponse = dataManager.get(forKey: cacheKey, maxAge: registrationCacheDuration) {
+
+        // Try cache first, unless a fresh fetch was explicitly requested
+        if !forceRefresh, let cachedResponse: CurrentEventRegistrationsResponse = dataManager.get(forKey: cacheKey, maxAge: registrationCacheDuration) {
             print("📋 RegistrationService: Using cached current event registrations")
             return cachedResponse
         }

@@ -21,17 +21,18 @@ class DashboardService {
     // MARK: - Read Operations
     
     /// Fetches dashboard statistics from test_schema for today
-    func fetchDashboardStats() async throws -> DashboardStats {
+    /// - Parameter forceRefresh: when true, skips the cache and always fetches fresh from the API
+    func fetchDashboardStats(forceRefresh: Bool = false) async throws -> DashboardStats {
         let cacheKey = DataManager.CacheKey.dashboardStats
-        
+
         // Return mock data for preview mode
         if SupabaseConfig.isPreviewMode {
             print("📱 DashboardService: Using mock dashboard stats for preview mode")
             return SupabaseConfig.mockDashboardStats
         }
-        
-        // Try cache first
-        if let cachedStats: DashboardStats = dataManager.get(forKey: cacheKey, maxAge: dashboardCacheDuration) {
+
+        // Try cache first, unless a fresh fetch was explicitly requested
+        if !forceRefresh, let cachedStats: DashboardStats = dataManager.get(forKey: cacheKey, maxAge: dashboardCacheDuration) {
             print("📊 DashboardService: Using cached dashboard stats")
             return cachedStats
         }
@@ -50,7 +51,7 @@ class DashboardService {
                 .select("RegistrationID")
                 .gte("created_at", value: String(todayISO))
                 .execute()
-            let registrations: [Registration] = try SupabaseConfig.decode(registrationResponse.data, as: [Registration].self)
+            let registrations: [RegistrationIDOnly] = try SupabaseConfig.decode(registrationResponse.data, as: [RegistrationIDOnly].self)
             
             // 2. Get today's visitors (all)
             let visitorResponse = try await supabase
@@ -114,5 +115,17 @@ class DashboardService {
             }
             throw error
         }
+    }
+}
+
+/// Matches exactly the "RegistrationID" column selected in fetchDashboardStats() -
+/// decoding into the full Registration struct there would throw, since that
+/// partial select doesn't include created_at/Name, which Registration requires.
+@available(iOS 14.0, *)
+private struct RegistrationIDOnly: Codable {
+    let registrationID: Int64
+
+    enum CodingKeys: String, CodingKey {
+        case registrationID = "RegistrationID"
     }
 }

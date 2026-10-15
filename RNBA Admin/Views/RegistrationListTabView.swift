@@ -134,20 +134,20 @@ struct RegistrationListTabView: View {
             }
         }
         .refreshable {
-            await loadRegistrations()
+            loadRegistrations(forceRefresh: true)
         }
     }
     
     // MARK: - Private Methods
     
-    private func loadRegistrations() {
+    private func loadRegistrations(forceRefresh: Bool = false) {
         Task {
             isLoading = true
             loadError = nil
-            
+
             do {
                 // Fetch current event registrations
-                let response = try await registrationService.fetchCurrentEventRegistrations()
+                let response = try await registrationService.fetchCurrentEventRegistrations(forceRefresh: forceRefresh)
                 currentEventResponse = response
                 
                 // Convert to RegistrationSummary objects

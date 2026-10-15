@@ -84,6 +84,7 @@ struct Event: Codable, Identifiable {
     let name: String
     let date: String
     let isCurrent: Bool
+    let isEvening: Bool?
 
     var id: Int32 { eventID }
 
@@ -92,6 +93,7 @@ struct Event: Codable, Identifiable {
         case name = "Name"
         case date = "Date"
         case isCurrent = "Current"
+        case isEvening = "IsEvening"
     }
 }
 
@@ -101,9 +103,9 @@ struct Registration: Codable, Identifiable {
     let registrationID: Int64
     let createdAt: String // timestamptz
     let name: String
-    let contactID: Int64 // Foreign key to Contact
-    let eventID: Int32 // Foreign key to Event
-    
+    let contactID: Int64? // Foreign key to Contact, nullable in the database
+    let eventID: Int32? // Foreign key to Event, nullable in the database
+
     var id: Int64 { registrationID }
     
     enum CodingKeys: String, CodingKey {
@@ -144,7 +146,7 @@ struct Payment: Codable, Identifiable {
     let createdAt: String // timestamptz
     let paymentTypeID: Int64 // Foreign key to PaymentType
     let registrationID: Int64 // Foreign key to Registration
-    let amount: Decimal // numeric in database
+    let amount: Decimal? // numeric in database, nullable
     let remarks: String?
     
     var id: Int64 { paymentID }
