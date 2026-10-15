@@ -24,3 +24,6 @@ DerivedData/
 
 # Local implementation/design notes - kept on disk for reference, not shared
 docs/
+
+# WordPress -> Supabase import scripts and SQL - kept local, not shared
+wp-sync/
